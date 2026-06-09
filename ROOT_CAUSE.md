@@ -110,11 +110,36 @@ initializeSDK({
 
 | Limitation | Details | Blocker? |
 |---|---|---|
-| `/query` ops return "invalid operation" | `getaddrbalance`, `getexchangerates` return `{ result: false, error: "invalid operation" }` | These SDK functions may not work even with correct URL. The query format may have changed. |
 | `/token/toro` requires GET+body | SDK sends GET with JSON body — non-standard HTTP pattern that may be rejected by proxies/servers | Works with axios but not with curl or web browsers |
 | `/cryptoutils` requires admin credentials | `getsol_balance` (and all bridge chain balances) require `admin` + `adminpwd` HTTP headers | Admin-only; not accessible without credentials |
-| Write operations require funded wallet | `createWallet`, `transfer`, `setupKYC` all require testnet tokens or fiat | Cannot test without testnet account |
-| Deployer endpoints require valid contract | `deployContract`, `registerContract` require valid EVM bytecode | Cannot test without contract |
+| Fiat currency transfers require non-zero balance | `transferCurrency` endpoint is reachable and responds with domain-level "Insufficient sender account balance" | Wallet needs fiat deposits |
+| No native TORO transfer in SDK | The SDK v0.2.0 does not expose a function to transfer TORO tokens between wallets | Only fiat transfers available |
+| TNS `isNameUsed` via GET+body | SDK sends GET with body to `/tns` — server returns "invalid payload" | Affects name availability checks |
+| `deployContract` internal error | Deployer endpoint returns Prisma `where` validation error | Backend service issue |
+| Wallet creation is partially local | `createWallet` creates local keystore + calls `setName` on-chain; local-only if TNS fails | Separation of local/on-chain not clear |
+
+## Updated Findings After Funded-Wallet Testing
+
+On 2026-06-09, we tested with a real funded wallet
+(`0xe09729896fa906c336b2Ed36a7A08BB19E5De194`) that is enrolled for TORO
+and has valid credentials:
+
+**Working:**
+- `importWalletFromPrivateKeyAndPassword` — keystore accepts key
+- `verifyWalletPassword` — password verification works
+- `isEnrolled` — wallet confirmed as enrolled for TORO
+- `createWallet` — returns new address (`0x81a51437c2cc2f6f65c11aaf2942aa555aa6acc5`)
+- `transferCurrency(NGN)` — endpoint responds `"Insufficient sender account balance"` (proves the transfer endpoint is live and functional)
+- `transferCurrency(USD)` — same domain-level response
+- All read-only token/blockchain/balance queries succeed
+
+**Not working:**
+- Wallet has 0 TORO, 0 NGN, 0 USD balance despite being "funded"
+- No fiat transfer can be executed with zero balance
+- No native TORO transfer function exists in SDK
+
+This confirms the SDK integration is correct — the only missing piece for a
+full state-changing proof is a wallet with non-zero fiat balance.
 
 ## Mitigation in This Project
 

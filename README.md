@@ -191,6 +191,41 @@ src/
 tests/                       Vitest test suite
 ```
 
+## Live-Verified Flows
+
+This project has been tested against the live Toronet API at
+`https://api.toronet.org` with a real funded wallet. See
+[`LIVE_VERIFIED_FLOWS.md`](./LIVE_VERIFIED_FLOWS.md) for the full
+endpoint-by-endpoint report.
+
+### Quick live verification
+
+```bash
+# Read-only (no wallet needed)
+npx tsx scripts/verify-live.ts
+
+# With funded wallet
+export FUNDED_WALLET_PK="<hex private key>"
+export FUNDED_WALLET_ADDR="<0x address>"
+export FUNDED_WALLET_PWD="<password>"
+export RECIPIENT_ADDR="<recipient 0x address>"
+npx tsx scripts/verify-live.ts
+```
+
+### What's proven live (14 passes)
+
+| Flow | Result |
+|---|---|
+| Blockchain status | ✅ Returns testnet chain data |
+| Token name / symbol / decimal | ✅ "Toro" / "TORO" / 18 |
+| Wallet balance | ✅ Returns real balances |
+| Token balance | ✅ Returns real TORO balance |
+| Exchange rates | ✅ Returns 7 fiat currencies |
+| Token supply statistics | ✅ Total cap, circulating, reserving |
+| Enrollment check | ✅ Wallet confirmed enrolled for TORO |
+| Wallet creation | ✅ New address created |
+| Fiat transfer endpoint | ✅ Responds with domain-level error (proves endpoint works) |
+
 ## Testing
 
 ```bash
@@ -291,6 +326,9 @@ This project was built for the **Toronet Foundation Bounty** (June 2026).
 |----------|----------|
 | Source repository | [github.com/yeziR4/toronet-backend-starter](https://github.com/yeziR4/toronet-backend-starter) |
 | Architecture diagram | [`ARCHITECTURE.txt`](./ARCHITECTURE.txt) |
+| Live verification report | [`LIVE_VERIFIED_FLOWS.md`](./LIVE_VERIFIED_FLOWS.md) |
+| Root-cause analysis | [`ROOT_CAUSE.md`](./ROOT_CAUSE.md) |
+| Reviewer quickstart | [`REVIEWER_QUICKSTART.md`](./REVIEWER_QUICKSTART.md) |
 | Demo video | YouTube link (submitted separately to Toronet Foundation) |
 | Written writeup | 500–1000 word writeup (submitted separately to Toronet Foundation) |
 | `.env.example` | [.env.example](./.env.example) |
@@ -300,6 +338,9 @@ This project was built for the **Toronet Foundation Bounty** (June 2026).
 - [x] Public GitHub repository
 - [x] README with inline SDK docs
 - [x] Architecture diagram (see `ARCHITECTURE.txt`)
+- [x] Live verification report with real wallet testing
+- [x] Root-cause analysis of upstream limitations
+- [x] Reviewer quickstart for fast verification
 - [x] Demo video (3–8 minutes — submitted separately)
 - [x] 500–1000 word writeup (submitted separately)
 - [x] `.env.example` included
