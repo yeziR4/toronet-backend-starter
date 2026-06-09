@@ -1,0 +1,34 @@
+{
+  "name": "toronet-backend-starter",
+  "version": "1.0.0",
+  "description": "Production-grade Node.js/TypeScript backend starter kit for building on Toronet blockchain. Deep integration with the Toronet JS SDK (torosdk).",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsx watch src/index.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint src/",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": ["toronet", "blockchain", "sdk", "starter-kit", "backend", "fintech"],
+  "license": "MIT",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "pino": "^9.6.0",
+    "torosdk": "^0.2.0",
+    "zod": "^3.24.4"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.15.3",
+    "eslint": "^9.24.0",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.3",
+    "vitest": "^3.1.2"
+  }
+}
