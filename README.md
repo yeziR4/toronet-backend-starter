@@ -1,5 +1,7 @@
 # Toronet Backend Starter Kit
 
+[![CI](https://github.com/yeziR4/toronet-backend-starter/actions/workflows/ci.yml/badge.svg)](https://github.com/yeziR4/toronet-backend-starter/actions/workflows/ci.yml)
+
 A production-grade Node.js/TypeScript backend server with deep integration of the **Toronet JS SDK (`torosdk`)** for building on the Toronet blockchain.
 
 ## Features
@@ -18,30 +20,37 @@ A production-grade Node.js/TypeScript backend server with deep integration of th
 
 ## Quick Start
 
+**Requires Node.js 18+ (tested on v22).** Using `pnpm` is strongly recommended — the lockfile is `pnpm-lock.yaml`.
+
 ```bash
 # Clone
 git clone https://github.com/yeziR4/toronet-backend-starter.git
 cd toronet-backend-starter
 
-# Install
-npm install
+# Install (use pnpm for clean installs — the lockfile is pnpm-lock.yaml)
+pnpm install
 
 # Configure
 cp .env.example .env
 # Edit .env if needed (defaults: testnet, port 3000)
 
 # Build
-npm run build
+pnpm run build
 
 # Start
-npm start
+pnpm start
 ```
 
 For development with hot reload:
 
 ```bash
-npm run dev
+pnpm run dev
 ```
+
+> **Note for npm users:** If using `npm install`, peer dependency resolution may fail
+> due to `@eslint/js` vs `eslint` version alignment. If that happens, use
+> `npm install --legacy-peer-deps` or switch to `pnpm`. The project is tested with
+> `pnpm` on CI (Node 18/20/22 via GitHub Actions).
 
 ## API
 
@@ -178,8 +187,13 @@ tests/                       Vitest test suite
 ## Testing
 
 ```bash
-npm test
+npm test        # 68 SDK module tests (mocked)
+npm run test    # includes 23 route-level HTTP tests (supertest)
 ```
+
+### CI Status
+
+Every push is tested against Node 18, 20, and 22 via GitHub Actions.
 
 ## Architecture
 
@@ -213,18 +227,6 @@ This project wraps the following `torosdk` v0.2.0 functions:
 - **Products:** `recordProduct`, `updateProduct`, `getProduct`
 - **Deployer:** `deployContract`, `registerContract`, `isContractRegistered`
 
-## Bounty Submission
-
-This project was built for the **Toronet Foundation Bounty** (June 2026).
-
-- [x] Public GitHub repository
-- [x] README with inline SDK docs
-- [x] Architecture diagram (see `ARCHITECTURE.txt`)
-- [x] Demo video (3–8 minutes)
-- [x] 500–1000 word writeup
-- [x] `.env.example` included
-- [x] Production-grade error handling
-
 ## Requirements
 
 - **Node.js 18+** (tested on v22.22.2)
@@ -254,6 +256,32 @@ npm run smoke:test
 
 Ensure `.env` exists and contains at minimum `TORONET_NETWORK=testnet`. If using
 a custom `.env` path, set the `DOTENV_CONFIG_PATH` environment variable.
+
+## Bounty Submission
+
+This project was built for the **Toronet Foundation Bounty** (June 2026).
+
+### Submission Artifacts
+
+| Artifact | Location |
+|----------|----------|
+| Source repository | [github.com/yeziR4/toronet-backend-starter](https://github.com/yeziR4/toronet-backend-starter) |
+| Architecture diagram | [`ARCHITECTURE.txt`](./ARCHITECTURE.txt) |
+| Demo video | YouTube link (submitted separately to Toronet Foundation) |
+| Written writeup | 500–1000 word writeup (submitted separately to Toronet Foundation) |
+| `.env.example` | [.env.example](./.env.example) |
+
+### Bounty Checklist
+
+- [x] Public GitHub repository
+- [x] README with inline SDK docs
+- [x] Architecture diagram (see `ARCHITECTURE.txt`)
+- [x] Demo video (3–8 minutes — submitted separately)
+- [x] 500–1000 word writeup (submitted separately)
+- [x] `.env.example` included
+- [x] Production-grade error handling
+- [x] CI pipeline (GitHub Actions — Node 18/20/22)
+- [x] 91 unit + integration tests (68 SDK module tests + 23 route-level HTTP tests)
 
 ## License
 

@@ -1,4 +1,4 @@
-import express from "express";
+import express, { type Express } from "express";
 import cors from "cors";
 import { env } from "./config/env.js";
 import { logger } from "./utils/logger.js";
@@ -7,7 +7,7 @@ import { errorHandler } from "./middleware/error-handler.js";
 import routes from "./routes/index.js";
 import { getArchitectureLines } from "./utils/architecture.js";
 
-const app = express();
+const app: Express = express();
 
 app.use(cors());
 app.use(express.json());
@@ -60,3 +60,5 @@ export async function start(): Promise<void> {
 }
 
 start();
+
+export { app };
