@@ -55,7 +55,9 @@ router.get(
   asyncWrap(async (req, res) => {
     const address = req.params.address as string;
     if (!address) throw new ValidationError("address is required");
-    const balance = await bridge.getBridgeBalance(address);
+    const admin = req.query.admin as string | undefined;
+    const adminpwd = req.query.adminpwd as string | undefined;
+    const balance = await bridge.getBridgeBalance(address, admin, adminpwd);
     sendSuccess(res, balance);
   }),
 );

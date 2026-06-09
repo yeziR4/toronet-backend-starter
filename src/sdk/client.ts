@@ -18,12 +18,13 @@ export function getSDK(): typeof toronet {
 export function initializeToronetClient(): void {
   if (initialized) return;
   try {
-    toronet.initializeSDK({ network: env.TORONET_NETWORK });
+    const options: Record<string, string> = { network: env.TORONET_NETWORK };
+    if (env.TORONET_BASE_URL) options.baseURL = env.TORONET_BASE_URL;
+    if (env.TORONET_CONNECT_W_URL) options.connectWURL = env.TORONET_CONNECT_W_URL;
+    if (env.TORONET_DEPLOYER_URL) options.deployerURL = env.TORONET_DEPLOYER_URL;
+    toronet.initializeSDK(options);
     initialized = true;
-    logger.info(
-      { network: env.TORONET_NETWORK },
-      "Toronet SDK initialized",
-    );
+    logger.info(options, "Toronet SDK initialized");
   } catch (err) {
     logger.error({ err }, "Failed to initialize Toronet SDK");
     throw new SdkError(

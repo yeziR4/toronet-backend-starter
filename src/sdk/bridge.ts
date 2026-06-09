@@ -86,15 +86,18 @@ export async function bridgeToken(
 
 /**
  * Get bridged token balance for an address on Solana
- * Wraps torosdk.getBridgeBalance(network, params). Queries the balance of
- * tokens that have been bridged from external chains. Currently defaults to
- * Solana bridge balance.
+ * Wraps torosdk.getBridgeBalance(network, params, admin?, adminpwd?).
+ * Queries the balance of tokens that have been bridged from external chains.
+ * Requires admin credentials (the SDK's cryptoutils endpoint mandates
+ * "admin" and "adminpwd" headers for all balance lookups).
  */
 export async function getBridgeBalance(
   address: string,
+  admin?: string,
+  adminpwd?: string,
 ): Promise<Record<string, unknown>> {
   try {
-    const result = await sdk().getBridgeBalance("sol", { address });
+    const result = await sdk().getBridgeBalance("sol", { address }, admin ?? "", adminpwd ?? "");
     return (result ?? {}) as Record<string, unknown>;
   } catch (err) {
     throw new SdkError(

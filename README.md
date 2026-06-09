@@ -154,11 +154,18 @@ All endpoints return JSON with a consistent shape:
 See `.env.example`:
 
 ```
-TORONET_NETWORK=testnet    # "testnet" or "mainnet"
+TORONET_NETWORK=testnet         # "testnet" or "mainnet"
+TORONET_BASE_URL=               # override SDK base URL (optional — see note below)
 PORT=3000
 HOST=0.0.0.0
-LOG_LEVEL=info             # debug | info | warn | error
+LOG_LEVEL=info                  # debug | info | warn | error
 ```
+
+> **⚠️ TORONET_BASE_URL note:** The `torosdk` v0.2.0 default testnet URL
+> (`http://testnet.toronet.org`) returns 404 for all paths. The known-working
+> endpoint is `https://api.toronet.org`. To use it, uncomment
+> `TORONET_BASE_URL=https://api.toronet.org` in your `.env`. For full
+> root-cause analysis, see [`ROOT_CAUSE.md`](./ROOT_CAUSE.md).
 
 ## Project Structure
 
