@@ -1,11 +1,8 @@
 import express, { type Express } from "express";
 import cors from "cors";
 import { env } from "./config/env.js";
-import { logger } from "./utils/logger.js";
-import { initializeToronetClient, getSDKConfig } from "./sdk/client.js";
 import { errorHandler } from "./middleware/error-handler.js";
 import routes from "./routes/index.js";
-import { getArchitectureLines } from "./utils/architecture.js";
 
 const app: Express = express();
 
@@ -39,26 +36,5 @@ app.get("/health", (_req, res) => {
 app.use("/api", routes);
 
 app.use(errorHandler);
-
-export async function start(): Promise<void> {
-  try {
-    initializeToronetClient();
-    const config = getSDKConfig();
-    logger.info({ config }, "Toronet SDK ready");
-
-    app.listen(env.PORT, env.HOST, () => {
-      logger.info(
-        { host: env.HOST, port: env.PORT },
-        "Server started",
-      );
-      getArchitectureLines().forEach((line) => logger.info(line));
-    });
-  } catch (err) {
-    logger.error({ err }, "Failed to start server");
-    process.exit(1);
-  }
-}
-
-start();
 
 export { app };

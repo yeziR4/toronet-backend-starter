@@ -187,9 +187,11 @@ tests/                       Vitest test suite
 ## Testing
 
 ```bash
-npm test        # 68 SDK module tests (mocked)
-npm run test    # includes 23 route-level HTTP tests (supertest)
+npm test          # 93 tests (65 SDK module + 28 route-level HTTP)
+npm run test:watch  # watch mode for development
 ```
+
+All tests use mocked SDK calls — no live network required.
 
 ### CI Status
 
@@ -246,10 +248,25 @@ curl http://localhost:3000/api/blockchain/status
 ```
 
 This is a **documented behavior**, not a bug. The app is designed to degrade gracefully
-when the network is unavailable. For a full smoke test against testnet, run:
+when the network is unavailable.
+
+### Smoke test reports live endpoints as skipped/failed
+
+The smoke test (`npm run smoke:test`) checks SDK initialization and module imports (always
+passes) and then attempts live queries against Toronet testnet. If the Toronet testnet
+node is unreachable, live queries are **skipped** (default mode) or **failed** (strict
+mode with `SMOKE_LIVE=1`).
+
+This is expected — the Toronet testnet may not be publicly accessible at all times.
+The project's unit/integration tests use mocked SDK calls and do not require a live
+network.
 
 ```bash
+# Default mode (offline-safe — skips unreachable endpoints)
 npm run smoke:test
+
+# Strict mode (fails if live endpoints are unreachable)
+SMOKE_LIVE=1 npm run smoke:test
 ```
 
 ### Environment not loading
@@ -281,7 +298,7 @@ This project was built for the **Toronet Foundation Bounty** (June 2026).
 - [x] `.env.example` included
 - [x] Production-grade error handling
 - [x] CI pipeline (GitHub Actions — Node 18/20/22)
-- [x] 91 unit + integration tests (68 SDK module tests + 23 route-level HTTP tests)
+- [x] 93 unit + integration tests (65 SDK module tests + 28 route-level HTTP tests)
 
 ## License
 
