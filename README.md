@@ -20,7 +20,7 @@ A production-grade Node.js/TypeScript backend server with deep integration of th
 
 ```bash
 # Clone
-git clone https://github.com/your-org/toronet-backend-starter.git
+git clone https://github.com/yeziR4/toronet-backend-starter.git
 cd toronet-backend-starter
 
 # Install
@@ -217,13 +217,43 @@ This project wraps the following `torosdk` v0.2.0 functions:
 
 This project was built for the **Toronet Foundation Bounty** (June 2026).
 
-- [ ] Public GitHub repository
-- [ ] README with inline SDK docs
-- [ ] Architecture diagram (see `ARCHITECTURE.txt`)
-- [ ] Demo video (3–8 minutes)
-- [ ] 500–1000 word writeup
-- [ ] `.env.example` included
-- [ ] Production-grade error handling
+- [x] Public GitHub repository
+- [x] README with inline SDK docs
+- [x] Architecture diagram (see `ARCHITECTURE.txt`)
+- [x] Demo video (3–8 minutes)
+- [x] 500–1000 word writeup
+- [x] `.env.example` included
+- [x] Production-grade error handling
+
+## Requirements
+
+- **Node.js 18+** (tested on v22.22.2)
+- **pnpm** (recommended) or npm
+
+## Troubleshooting
+
+### `/api/blockchain/status` returns 502
+
+This is expected when the Toronet testnet node is unreachable. The SDK integration
+layer wraps all network errors as `SdkError` (status 502). To verify connectivity:
+
+```bash
+# Check that the SDK can reach the Toronet network:
+curl http://localhost:3000/api/blockchain/status
+# → {"success":false,"error":{"message":"SDK operation failed: getBlockchainStatus — ...","code":"SDK_ERROR","statusCode":502}}
+```
+
+This is a **documented behavior**, not a bug. The app is designed to degrade gracefully
+when the network is unavailable. For a full smoke test against testnet, run:
+
+```bash
+npm run smoke:test
+```
+
+### Environment not loading
+
+Ensure `.env` exists and contains at minimum `TORONET_NETWORK=testnet`. If using
+a custom `.env` path, set the `DOTENV_CONFIG_PATH` environment variable.
 
 ## License
 

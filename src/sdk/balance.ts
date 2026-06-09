@@ -1,16 +1,16 @@
 import { getSDK } from "./client.js";
 import { SdkError } from "../types/errors.js";
+import { logger } from "../utils/logger.js";
 
 function sdk() {
   return getSDK();
 }
 
-export interface BalanceInfo {
-  address: string;
-  balance: string;
-  unit?: string;
-}
-
+/**
+ * Get TORO balance for an address
+ * Wraps torosdk.getBalance({ address }) which returns ngnBalance, usdBalance,
+ * and toroGBalance. This is the primary balance check for the native TORO token.
+ */
 export async function getBalance(
   address: string,
 ): Promise<Record<string, unknown>> {
@@ -24,6 +24,12 @@ export async function getBalance(
   }
 }
 
+/**
+ * Get balance for a specific fiat currency (NGN, USD, EUR, GBP, etc.)
+ * Wraps torosdk.getCurrencyBalance({ currency, address }). Toronet supports
+ * multi-currency native balances — this is a key differentiator from other
+ * blockchain platforms.
+ */
 export async function getCurrencyBalance(
   address: string,
   currency: string,
@@ -38,6 +44,11 @@ export async function getCurrencyBalance(
   }
 }
 
+/**
+ * Get token balance (TRC-20 equivalent on Toronet)
+ * Wraps torosdk.getTokenBalance({ address }). For checking balances of
+ * custom tokens deployed on the Toronet chain.
+ */
 export async function getTokenBalance(
   address: string,
 ): Promise<Record<string, unknown>> {
@@ -51,8 +62,13 @@ export async function getTokenBalance(
   }
 }
 
+/**
+ * Get token metadata (name, symbol, decimals)
+ * Wraps torosdk.getTokenName() / getTokenSymbol() / getTokenDecimal().
+ * These are chain-wide values for the primary Toronet token.
+ */
 export async function getTokenInfo(
-  _contractAddress: string,
+  contractAddress: string,
 ): Promise<Record<string, unknown> | null> {
   try {
     const [name, symbol, decimals] = await Promise.all([
@@ -61,7 +77,8 @@ export async function getTokenInfo(
       sdk().getTokenDecimal(),
     ]);
     return { name, symbol, decimals };
-  } catch {
+  } catch (err) {
+    logger.warn({ err, contractAddress }, "getTokenInfo failed — contract may not exist or network unavailable");
     return null;
   }
 }

@@ -14,6 +14,12 @@ export interface ImportWalletInput {
   password: string;
 }
 
+/**
+ * Create a new Toronet wallet
+ * Wraps torosdk.createWallet({ username, password }) which generates a keypair
+ * and stores it server-side. Returns the wallet address. Use for user onboarding
+ * where Toronet manages keys.
+ */
 export async function createWallet(
   username: string,
   password: string,
@@ -29,6 +35,11 @@ export async function createWallet(
   }
 }
 
+/**
+ * Import existing wallet from private key
+ * Wraps torosdk.importWalletFromPrivateKeyAndPassword. Used when a user already
+ * has a wallet outside Toronet and wants to associate it with their account.
+ */
 export async function importWallet(
   input: ImportWalletInput,
 ): Promise<WalletInfo> {
@@ -49,6 +60,10 @@ export async function importWallet(
   }
 }
 
+/**
+ * Import a raw private key and return the derived address
+ * Lighter-weight than importWallet — only derives address without creating a keystore.
+ */
 export async function importKey(
   privateKey: string,
   password: string,
@@ -63,6 +78,11 @@ export async function importKey(
   }
 }
 
+/**
+ * Verify a wallet password against the Toronet keystore
+ * Wraps torosdk.verifyWalletPassword({ address, password }). Essential for
+ * authenticating wallet operations that require password confirmation.
+ */
 export async function verifyWalletPassword(
   address: string,
   password: string,

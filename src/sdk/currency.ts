@@ -10,6 +10,13 @@ export interface TransferResult {
   txHash?: string;
 }
 
+/**
+ * Transfer a fiat currency (NGN, USD, EUR, etc.) between Toronet addresses
+ * Wraps torosdk.transferCurrency({ currency, senderAddr, senderPwd, receiverAddr, amount }).
+ * This is Toronet's core fiat transfer operation — unlike most blockchains,
+ * Toronet supports native multi-currency transfers at the protocol level.
+ * The senderPwd is required for server-side keystore authentication.
+ */
 export async function transferCurrency(params: {
   currency: string;
   senderAddr: string;
@@ -31,6 +38,12 @@ export async function transferCurrency(params: {
   }
 }
 
+/**
+ * Transfer TORO between wallets in the same keystore
+ * Wraps torosdk.makeInterWalletTransfer(senderAddr, senderPwd, receiverAddr, amount, currencyName).
+ * This is a convenience method for transferring between addresses that share
+ * the same server-side keystore, avoiding on-chain gas costs.
+ */
 export async function makeInterWalletTransfer(
   senderAddr: string,
   senderPwd: string,
@@ -58,12 +71,23 @@ export async function makeInterWalletTransfer(
   }
 }
 
+/**
+ * List all fiat currencies supported by Toronet
+ * Toronet is unique in supporting native multi-currency operations.
+ * These currencies can be held, transferred, and exchanged within
+ * the Toronet ecosystem without third-party stablecoins.
+ */
 export function getSupportedCurrencies(): string[] {
   return [
     "TORO", "USD", "EUR", "GBP", "NGN", "KSH", "ZAR", "EGP",
   ];
 }
 
+/**
+ * Get current exchange rates for all supported assets
+ * Wraps torosdk.getSupportedAssetsExchangeRates(). Returns the latest
+ * conversion rates between TORO and supported fiat currencies.
+ */
 export async function getExchangeRates(): Promise<Record<string, unknown>> {
   try {
     return (await sdk().getSupportedAssetsExchangeRates()) ?? {};

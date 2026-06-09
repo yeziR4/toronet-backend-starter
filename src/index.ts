@@ -17,7 +17,7 @@ app.get("/", (_req, res) => {
     service: "toronet-backend-starter",
     version: "1.0.0",
     network: env.TORONET_NETWORK,
-    docs: "https://github.com/your-org/toronet-backend-starter",
+    docs: "https://github.com/yeziR4/toronet-backend-starter",
     endpoints: [
       "/api/wallet",
       "/api/blockchain",

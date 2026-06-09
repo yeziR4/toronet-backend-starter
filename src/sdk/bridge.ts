@@ -17,7 +17,7 @@ export interface BridgeFee {
   chain: BridgeChain;
 }
 
-const CHAIN_FEE_MAP: Record<BridgeChain, string> = {
+const CHAIN_NETWORK_MAP: Record<BridgeChain, string> = {
   solana: "sol",
   polygon: "poly",
   bsc: "bsc",
@@ -25,12 +25,17 @@ const CHAIN_FEE_MAP: Record<BridgeChain, string> = {
   arbitrum: "arb",
 };
 
+/**
+ * Get bridge fee estimate for transferring tokens from an external chain to Toronet
+ * Wraps torosdk.getBridgeTokenFeeEstimate(network, params). The fee varies by
+ * chain and current network conditions. Always check fees before initiating a transfer.
+ */
 export async function getBridgeFee(
   chain: BridgeChain,
   contractAddress: string,
   amount: string,
 ): Promise<BridgeFee> {
-  const network = CHAIN_FEE_MAP[chain];
+  const network = CHAIN_NETWORK_MAP[chain];
   if (!network) throw new ValidationError(`Unsupported chain: ${chain}`);
   try {
     const result = await sdk().getBridgeTokenFeeEstimate(network, {
@@ -47,6 +52,12 @@ export async function getBridgeFee(
   }
 }
 
+/**
+ * Bridge tokens from an external chain to Toronet
+ * Wraps torosdk.bridgeTokenFromChain(network, params). This is Toronet's
+ * cross-chain bridge feature. Supports Solana, Polygon, BSC, Base, and Arbitrum.
+ * Tokens are locked on the source chain and minted on Toronet.
+ */
 export async function bridgeToken(
   chain: BridgeChain,
   params: {
@@ -57,7 +68,7 @@ export async function bridgeToken(
     amount: string;
   },
 ): Promise<Record<string, unknown>> {
-  const network = CHAIN_FEE_MAP[chain];
+  const network = CHAIN_NETWORK_MAP[chain];
   if (!network) throw new ValidationError(`Unsupported chain: ${chain}`);
   try {
     const result = await sdk().bridgeTokenFromChain(network, {
@@ -73,6 +84,12 @@ export async function bridgeToken(
   }
 }
 
+/**
+ * Get bridged token balance for an address on Solana
+ * Wraps torosdk.getBridgeBalance(network, params). Queries the balance of
+ * tokens that have been bridged from external chains. Currently defaults to
+ * Solana bridge balance.
+ */
 export async function getBridgeBalance(
   address: string,
 ): Promise<Record<string, unknown>> {

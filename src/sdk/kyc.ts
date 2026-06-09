@@ -10,6 +10,12 @@ export interface KYCStatus {
   verified: boolean;
 }
 
+/**
+ * Configure KYC verification parameters on Toronet
+ * Wraps torosdk.setupKYC(params). Must be called by an admin account before
+ * performing individual KYC verifications. This sets the system-level KYC
+ * requirements (document types, verification levels, etc.).
+ */
 export async function setupKYC(params: {
   firstName: string;
   middleName: string;
@@ -32,6 +38,12 @@ export async function setupKYC(params: {
   }
 }
 
+/**
+ * Perform KYC verification for a customer
+ * Wraps torosdk.performKYCForCustomer(params). This is the core KYC operation
+ * that verifies a customer's identity against their submitted documents.
+ * Requires admin credentials as this is a privileged operation.
+ */
 export async function performKYC(params: {
   firstName: string;
   middleName: string;
@@ -55,6 +67,11 @@ export async function performKYC(params: {
   }
 }
 
+/**
+ * Check if an address has completed KYC verification
+ * Wraps torosdk.isAddressKYCVerified({ address }). Read-only query that
+ * returns the verification status for a given address.
+ */
 export async function checkKYC(address: string): Promise<KYCStatus> {
   if (!address) throw new ValidationError("address is required");
   try {
@@ -68,6 +85,12 @@ export async function checkKYC(address: string): Promise<KYCStatus> {
   }
 }
 
+/**
+ * Enroll an address in the Toronet currency system
+ * Wraps torosdk.enrollAddress(params). Before an address can hold or transfer
+ * fiat currencies (NGN, USD, etc.), it must be enrolled by an admin. This is
+ * a compliance measure specific to Toronet's fiat integration.
+ */
 export async function enrollAddress(params: {
   currency: string;
   address: string;
