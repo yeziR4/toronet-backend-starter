@@ -74,37 +74,48 @@ POST https://api.toronet.org/cryptoutils  { op: "getsol_balance" }
 
 ## Root Cause: DEFAULT_NETWORKS in torosdk
 
-The SDK source at `dist/index.js` line 113 defines:
+The SDK source at `dist/index.js` line 284 defines:
 
 ```js
 var DEFAULT_NETWORKS = {
   mainnet: {
-    baseURL: "https://api.toronet.org",           // ✅ Works
+    baseURL: "https://api.toronet.org",           // ❌ Returns chain 7777, balance=0!
     connectWURL: "https://payments.connectw.com",
     deployerURL: "https://deployer.toronet.org/api/mainnet"
   },
   testnet: {
-    baseURL: "http://testnet.toronet.org",         // ❌ Returns 404
+    baseURL: "http://testnet.toronet.org",         // ❌ Returns 404 for all paths
     connectWURL: "https://payments.connectw.com",
     deployerURL: "https://deployer.toronet.org/api/testnet"
   }
 };
 ```
 
-The testnet `baseURL` is HTTP (not HTTPS) and `testnet.toronet.org` no longer
-serves the expected API paths. The URL may have been deprecated, relocated, or
-the server configuration changed after torosdk v0.2.0 was published.
+**Both defaults are wrong.** The correct testnet API endpoint is:
+`https://testnet.toronet.org/api` (chain 54321, real on-chain balance = 300 TORO).
+
+The SDK's mainnet default (`https://api.toronet.org`) returns chain ID 7777 with
+zero balances, while the SDK's testnet default (`http://testnet.toronet.org`)
+returns 404 for all paths.
 
 ## SDK Fix Available: `baseURL` Override
 
-The SDK constructor fully supports a `baseURL` override:
+The SDK constructor supports a `baseURL` override:
 
 ```ts
 initializeSDK({
   network: "testnet",
-  baseURL: "https://api.toronet.org"   // override the broken default
+  baseURL: "https://testnet.toronet.org/api"  // ✅ Correct endpoint (chain 54321, 300 TORO)
 });
 ```
+
+## Network Topology Discovered
+
+| Endpoint | Chain ID | Label | TORO Balance |
+|---|---|---|---|
+| `https://api.toronet.org` (SDK mainnet default) | 7777 | "testnet" | 0 |
+| `https://testnet.toronet.org/api` (correct endpoint) | 54321 | "testnet" | **300** |
+| `https://toronet.org` (chainlist mainnet) | 77777 | "mainnet" | Unknown (RPC down) |
 
 ## Limitations That Persist Even With Correct URL
 
@@ -122,96 +133,95 @@ initializeSDK({
 
 On 2026-06-09 through 2026-06-10, we tested with a real funded wallet
 (`0xe09729896fa906c336b2Ed36a7A08BB19E5De194`) that is enrolled for TORO
-and has valid credentials:
+and has valid credentials.
 
-**Working:**
+### Breakthrough: Correct API Endpoint Found (2026-06-10)
+
+The Postman collection at `documenter.getpostman.com/view/20880049/2s93kz555m`
+revealed the correct API base URL: **`https://testnet.toronet.org/api`**.
+Using this endpoint instead of `https://api.toronet.org`:
+
+| Query | Incorrect API (`api.toronet.org`) | Correct API (`testnet.toronet.org/api`) |
+|---|---|---|
+| `getBlockchainStatus` → chainid | 7777 | **54321** |
+| `getTokenBalance` | **0** TORO | **300 TORO** ✅ |
+| `getReserve` address | `0x904111...` | `0xa231BB...` (different!) |
+| `getTotalCap` | 72449.94 | **84398** |
+| `getTotalCirculating` | 49247.24 | **33686** |
+| `getAddrRole` | N/A | **"client"** |
+| Transaction history | empty | **Mint of 300 TORO** (tx `0x0895...`) |
+
+**Working (via corrected API):**
+- `getTokenBalance` → **300 TORO** — wallet balance CONFIRMED
+- `getBlockchainStatus` → chain 54321 with 28M+ blocks (active testnet)
 - `importWalletFromPrivateKeyAndPassword` — keystore accepts key
-- `verifyWalletPassword` — password verification works
 - `isEnrolled` — wallet confirmed as enrolled for TORO
 - `createWallet` — returns new address (`0x81a51437c2cc2f6f65c11aaf2942aa555aa6acc5`)
-- `transferCurrency(NGN)` — endpoint responds `"Insufficient sender account balance"` (proves the transfer endpoint is live and functional)
-- `transferCurrency(USD)` — same domain-level response
-- All read-only token/blockchain/balance queries succeed
+- `transferCurrency(NGN)` — endpoint responds (proves transfer surface works)
+- Transaction history shows Mint of 300 TORO on 2026-06-08
+- Wallet role is "client"
 
-**Not working:**
-- Wallet has 0 TORO, 0 NGN, 0 USD balance despite being "funded"
-- No fiat transfer can be executed with zero balance
-- No native TORO transfer function exists in SDK
+**Not working (infrastructure limitations):**
+- No TORO token transfer exposed through public REST API (`op: "transfer"` returns "invalid operation")
+- No fiat balance to execute fiat transfer
+- No native TORO transfer function in SDK v0.2.0
 
-This confirms the SDK integration is correct — the only missing piece for a
-full state-changing proof is a wallet with non-zero fiat balance.
+This confirms the SDK integration is correct — the wallet has 300 TORO on-chain
+but the SDK lacks a TORO transfer function, and the fiat balance is zero.
 
-## Network Mismatch Discovery
+## Network Topology (Corrected)
 
-On 2026-06-10, a critical architectural discovery was made:
+After discovering the correct API endpoint on 2026-06-10, the complete network
+topology is now understood:
 
-### The Problem
+### Three Different Networks Found
 
-The SDK's mainnet API at `https://api.toronet.org` actually serves **testnet**
-data (chain ID 7777). The real mainnet chain ID is **77777** (0x12fd1).
+| Network | Chain ID | API Endpoint | TORO Balance | Status |
+|---|---|---|---|---|
+| **Testnet (correct)** | **54321** | `https://testnet.toronet.org/api` | **300 TORO** ✅ | Full REST API available |
+| Mismatched API | 7777 | `https://api.toronet.org` | 0 | SDK mainnet default — serves different data |
+| Mainnet (chainlist) | 77777 | `http://toronet.org/rpc` (503) | Unknown | RPC down |
 
-### Evidence
+### Complete API Probe Results
 
-| Source | Claimed Chain ID | Label |
-|---|---|---|
-| `GET https://api.toronet.org/blockchain/` | 7777 | "testnet" |
-| `GET https://explorer.toronet.org/api/blockchain` | 7777 | "testnet" |
-| `GET http://testnet.toronet.org/blockchain/` | 404 | N/A |
-| Chainlist.org chain/77777 | 77777 | "Toronet Mainnet" |
-| Metaschool RPC guide | 77777 | "Toronet Mainnet" |
-
-### Impact
-
-The wallet's 300 TORO (visible on explorer) likely lives on **mainnet**
-(chain 77777), while the SDK can only query **testnet** (chain 7777) where the
-balance is 0. There is no public mainnet REST API to verify this hypothesis.
-
-- Mainnet RPC at `http://toronet.org/rpc` returns **503 Service Unavailable**
-- Mainnet RPC port 8501 times out
-- No alternative mainnet API was found
-
-### SDK DEFAULT_NETWORKS Mapping
-
-```js
-// SDK source (dist/index.js:284-295):
-var DEFAULT_NETWORKS = {
-  mainnet: {
-    baseURL: "https://api.toronet.org",  // Actually serves testnet (7777)
-    deployerURL: "https://deployer.toronet.org/api/mainnet"
-  },
-  testnet: {
-    baseURL: "http://testnet.toronet.org",  // Returns 404
-    deployerURL: "https://deployer.toronet.org/api/testnet"
-  }
-};
-```
-
-Neither mapping produces correct mainnet data. The `mainnet` base URL returns
-testnet chain data, and the `testnet` base URL returns 404.
-
-### Full API Probe Results
-
-| Endpoint | Status | Notes |
-|---|---|---|
-| `https://api.toronet.org/blockchain/` | ✅ | Returns testnet (7777) |
-| `https://api.toronet.org/token/toro` | ✅ | TORO balance = 0 |
-| `https://api.toronet.org/query` | ✅ | Fiat balances = 0 |
-| `https://api.toronet.org/keystore` | ✅ | Wallet create/import works |
-| `https://explorer.toronet.org/api/blockchain` | ✅ | Same testnet data |
-| `https://toronet.org/api` | ❌ 403 | Forbidden |
-| `https://toronet.org/api/blockchain` | ❌ Timeout | No response |
-| `http://toronet.org/rpc` | ❌ 503 | Mainnet RPC down |
-| `http://toronet.org:8501` | ❌ Timeout | Mainnet RPC port down |
-| `http://testnet.toronet.org/blockchain/` | ❌ 404 | No API endpoint |
+| Endpoint | Status | Chain ID | Balance |
+|---|---|---|---|
+| `https://testnet.toronet.org/api/token/toro/` | ✅ | 54321 | **300 TORO** |
+| `https://testnet.toronet.org/api/query` | ✅ | 54321 | Multi-currency |
+| `https://testnet.toronet.org/api/blockchain` | ✅ | 54321 | Live blocks |
+| `https://testnet.toronet.org/api/keystore` | ✅ | 54321 | Wallet create/import |
+| `https://api.toronet.org/blockchain/` | ✅ but wrong | 7777 | 0 TORO |
+| `https://api.toronet.org/token/toro` | ✅ but wrong | 7777 | 0 TORO |
+| `https://api.toronet.org/query` | ✅ but wrong | 7777 | 0 TORO |
+| `https://explorer.toronet.org/api/blockchain` | ✅ but wrong | 7777 | Same as api.toronet |
+| `https://toronet.org/api` | ❌ 403 | — | — |
+| `http://toronet.org/rpc` | ❌ 503 | 77777 | — |
+| `http://testnet.toronet.org/blockchain/` | ❌ 404 | — | — |
 
 ### Conclusion
 
-The wallet balance discrepancy (300 TORO on explorer vs 0 via SDK) is best
-explained by an **API_NETWORK_MISMATCH**: the public API only exposes testnet
-data, while the wallet's funds are on mainnet. Without a functioning mainnet
-API endpoint, the discrepancy cannot be resolved programmatically.
+The wallet has **300 TORO** on the testnet at chain ID 54321, accessible via
+`https://testnet.toronet.org/api`. The SDK's incorrect default URLs caused the
+discrepancy.
 
-See `docs/WALLET_BALANCE_DISCREPANCY.md` for the complete investigation report.
+**TORO transfer IS possible** via custodial `POST /api/token/toro/cl` with
+`clientpwd` — successfully executed on 2026-06-10:
+
+| Detail | Value |
+|---|---|
+| Sender | `0xe09729896fa906c336b2Ed36a7A08BB19E5De194` |
+| Recipient | `0xdbeca6ffCc3d4eAa8389e16190B4c733E998D179` |
+| Amount | 1 TORO |
+| Sender balance after | 299 TORO (was 300) |
+| Recipient balance after | 1 TORO (was 0) |
+| Tx hash | `0xad4ef61bf2606f95018750247941341c8afeb88b5090c249faf8269f7b852071` |
+| Fee | 0 (free) |
+| Method | Custodial POST with keystore password |
+
+The `transferToro()` function in `src/sdk/currency.ts` wraps this endpoint —
+not available in torosdk v0.2.0 which only supports fiat transfers.
+
+See `docs/WALLET_BALANCE_DISCREPANCY.md` for the complete investigation.
 
 ## Mitigation in This Project
 

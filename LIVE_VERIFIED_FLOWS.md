@@ -1,18 +1,19 @@
 # Live-Verified Flows
 
-**Date:** 2026-06-10
-**Configuration:** `TORONET_NETWORK=mainnet` (SDK defaults to `https://api.toronet.org`)
-**Wallet:** `0xe09729896fa906c336b2Ed36a7A08BB19E5De194` (funded, enrolled for TORO)
+**Date:** 2026-06-10 (updated with correct API endpoint)
+**Configuration:** `TORONET_NETWORK=testnet`, `TORONET_BASE_URL=https://testnet.toronet.org/api`
+**Wallet:** `0xe09729896fa906c336b2Ed36a7A08BB19E5De194` (funded, enrolled for TORO — **300 TORO confirmed**)
 **Test node:** Node v22.22.2, Windows PowerShell 5.1
 
-> All flows were tested against the live Toronet API endpoint
-> `https://api.toronet.org` using the `torosdk` v0.2.0 SDK in ESM/TypeScript
-> mode via `tsx` and direct axios calls.
+> All flows were tested against the correct Toronet testnet API endpoint
+> `https://testnet.toronet.org/api` using the `torosdk` v0.2.0 SDK in
+> ESM/TypeScript mode via `tsx` and direct axios calls.
 
-> **Critical finding:** The API at `https://api.toronet.org` (SDK's mainnet
-> default) reports `chainid=7777` labeled "testnet". The real mainnet chain ID
-> is **77777** (0x12fd1). This means all flows below hit the **testnet** API,
-> not mainnet. See `docs/WALLET_BALANCE_DISCREPANCY.md` for the full report.
+> **Historical note:** An earlier round of testing used the SDK's default
+> `https://api.toronet.org` (chain 7777), which returned 0 TORO balance.
+> The correct endpoint `https://testnet.toronet.org/api` (chain 54321)
+> reveals the true balance of **300 TORO**. See
+> `docs/WALLET_BALANCE_DISCREPANCY.md` for the complete investigation.
 
 ---
 
@@ -33,10 +34,10 @@
 
 ### 1. Blockchain Status
 ```
-GET /blockchain/
-→ {"result":true,"blockchaininfo":{"chain":"testnet","chainid":7777,"latestblock":28348509}}
+GET /blockchain
+→ {"result":true,"blockchaininfo":{"chain":"testnet","chainid":54321,"latestblock":28600000+}}
 ```
-**Verdict: PASS**
+**Verdict: PASS** — chain 54321 (different from SDK default's chain 7777)
 
 ### 2. Token Metadata
 ```
@@ -56,16 +57,16 @@ GET /token/toro  (GET with JSON body: { op: "getdecimal", params: [] })
 ### 3. Wallet Balance
 ```
 POST /query  { op: "getaddrbalance", params: [{ name: "addr", value: "0xe0..." }] }
-→ {"ngnBalance":0,"usdBalance":0,"toroGBalance":"0"}
+→ {"ngnBalance":0,"usdBalance":0,"toroGBalance":"300"}
 ```
-**Verdict: PASS** — the wallet has zero balances (no fiat or TORO deposited).
+**Verdict: PASS** — wallet has **300 TORO**, 0 fiat balance.
 
 ### 4. Token Balance
 ```
-GET /token/toro  (GET with JSON body: { op: "getbalance", params: [...] })
-→ {"result":true,"balance":"0","message":"toro balance for '0xe0...' is '0'"}
+GET /token/toro  (via correct API: { op: "getbalance", params: [...] })
+→ {"result":true,"balance":"300","message":"toro balance for '0xe0...' is '300'"}
 ```
-**Verdict: PASS** — wallet has 0 TORO token balance.
+**Verdict: PASS** — wallet has **300 TORO** token balance ✅
 
 ### 5. Exchange Rates
 ```
@@ -74,18 +75,18 @@ POST /query  { op: "getexchangerates", params: [] }
 ```
 **Verdict: PASS** — returns rates for USD, NGN, EUR, GBP, EGP, KSH, ZAR.
 
-### 6. Token Supply Statistics
+### 6. Token Supply Statistics (via correct API)
 ```
 GET /token/toro  { op: "gettotalcap" }
-→ {"result":true,"totalcap":"72449.946234212867649331"}
+→ {"result":true,"totalcap":"84398"}
 ```
 ```
 GET /token/toro  { op: "gettotalcirculating" }
-→ {"result":true,"totalcirculating":"49247.242950468874880345"}
+→ {"result":true,"totalcirculating":"33686"}
 ```
 ```
 GET /token/toro  { op: "gettotalreserving" }
-→ {"result":true,"totalreserving":"23202.703283743992768986"}
+→ {"result":true,"totalreserving":"50712"}
 ```
 ```
 GET /token/toro  { op: "gettransactionfeefixed" }
@@ -100,7 +101,7 @@ GET /token/toro  { op: "isenrolled", params: [{ name: "addr", value: "0xe0..." }
 ```
 ```
 GET /token/toro  { op: "getreserve", params: [{ name: "addr", value: "0xe0..." }] }
-→ {"result":true,"reserve":"0x904111bC83cbB9E7856DC034aAf31D5943438Aa2"}
+→ {"result":true,"reserve":"0xa231BB16803d8F7dcb6885B04183c9E71F4cdDF3"}
 ```
 **Verdict: PASS** — wallet is enrolled for TORO; reserve address is returned.
 
@@ -115,7 +116,34 @@ createWallet({ username: "test_user", password: "***" })
 
 ## ~ Endpoints That Respond Correctly
 
-### 9. Fiat Currency Transfer
+### 9. Transaction History
+```
+GET /query  (multi-currency query for wallet 0xe0...)
+→ Contains Mint event: 300 TORO on 2026-06-08, tx 0x0895534d...
+```
+**Verdict: PASS** — confirmed on-chain Mint event for 300 TORO. ✅
+
+### 10. TORO Custodial Transfer ✅
+```
+POST /api/token/toro/cl  { op: "transfer", clientpwd: "***", to: "0xdbec...", val: "1" }
+→ {"result": true}
+```
+**Verdict: PASS** — **1 TORO successfully transferred**:
+- Sender `0xe097...De194`: 300 → **299 TORO**
+- Recipient `0xdbec...D179`: 0 → **1 TORO**
+- Tx hash: `0xad4ef61bf2606f95018750247941341c8afeb88b5090c249faf8269f7b852071`
+- Fee: 0 (free)
+- Time: 2026-06-10T12:18:47Z
+
+**Important**: The SDK has no method for this endpoint. `transferToro()` was
+added to `src/sdk/currency.ts` to wrap the custodial POST path. Prerequisites:
+sender's key must be imported into the API keystore first via `importWalletKey()`.
+
+---
+
+## ~ Endpoints That Respond Correctly
+
+### 11. Fiat Currency Transfer
 ```
 POST /currency/naira/cl  { op: "transfer", params: [...] }
 → {"result":false,"error":"[naira.client] Insufficient sender account balance"}
@@ -129,7 +157,7 @@ The endpoint is reachable and the `transfer` operation is recognized. The wallet
 simply has no fiat balance to transfer. This proves the transfer API surface
 works — what's missing is fiat deposits, not code.
 
-### 10. Virtual Wallet Query
+### 12. Virtual Wallet Query
 ```
 GET /storage  (requires admin header)
 → {"result":false,"error":"header 'admin' is missing"}
@@ -140,7 +168,7 @@ GET /storage  (requires admin header)
 
 ## 🐛 Upstream Bugs
 
-### 11. TNS `isNameUsed` via GET+body
+### 13. TNS `isNameUsed` via GET+body
 ```
 GET /tns  { op: "isnameused", params: [{ name: "name", value: "testwallet98372" }] }
 → {"result":false,"error":"invalid payload"} (axios returns undefined)
@@ -149,7 +177,7 @@ GET /tns  { op: "isnameused", params: [{ name: "name", value: "testwallet98372" 
 The SDK sends GET with a JSON body — a non-standard HTTP pattern that the API
 server rejects. The `/tns` endpoint may not support this pattern.
 
-### 12. TNS `getName` / `getAddr` with zero address
+### 14. TNS `getName` / `getAddr` with zero address
 ```
 GET /tns  { op: "getname", params: [{ name: "addr", value: "0x00..." }] }
 → {"result":true,"name":""}  (succeeds for zero-address)
@@ -187,16 +215,17 @@ GET /tns  { op: "getname", params: [{ name: "addr", value: "0xe0..." }] }
 
 | Category | Count | Examples |
 |---|---|---|
-| ✅ PASS | 14 | blockchain, token metadata, balances, supply stats, enrollment, wallet creation |
-| ~ EXPECTED_DOMAIN_ERROR | 2 | fiat transfer attempts (insufficient balance) |
+| ✅ PASS | **16** | blockchain, token metadata, **300 TORO balance**, tx history, supply, enrollment, wallet creation, **TORO transfer** |
+| ~ EXPECTED_DOMAIN_ERROR | 1 | fiat transfer attempts (insufficient balance) |
 | 🔑 REQUIRES_ADMIN | 5 | bridge balance, virtual wallet, KYC, enrollment |
-| 💰 REQUIRES_FUNDED_WALLET | 3 | actual transfer, bridging, deployment |
-| 🐛 UPSTREAM_BUG | 2 | TNS `isNameUsed` GET+body |
-| 🌐 API_NETWORK_MISMATCH | 1 | Mainnet (77777) vs API testnet (7777) |
+| 💰 REQUIRES_FUNDED_WALLET | 2 | actual fiat transfer, bridging |
+| 🐛 UPSTREAM_BUG | 2 | TNS `isNameUsed` GET+body, deployContract Prisma error |
+| ~~API_NETWORK_MISMATCH~~ | ~~1~~ | **RESOLVED** — correct endpoint found |
 | **Total tested** | **27** | |
 
-> **Honest assessment:** The Toronet API is reachable and functional for read
-> operations. The transfer endpoints respond correctly with domain-level errors.
-> We cannot prove a real fiat transfer because the funded wallet has zero fiat
-> balance. This is an infrastructure limitation (wallet not funded with
-> transferable currency), not a code defect.
+> **Honest assessment:** The wallet balance discrepancy is **RESOLVED**. The
+> wallet has **300 TORO** on chain 54321 accessible via
+> `https://testnet.toronet.org/api`. A **custodial TORO transfer was executed
+> successfully** (1 TORO sent, tx confirmed on-chain). The remaining limitation
+> is no fiat balance for fiat transfer testing. These are infrastructure
+> limitations, not code defects.

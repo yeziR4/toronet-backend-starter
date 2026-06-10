@@ -4,8 +4,11 @@
  * Tests every reachable SDK endpoint against the actual Toronet API,
  * documents exactly which operations work and which don't.
  *
- * Unlike smoke-test.ts (which is designed for CI), this script is designed
- * for manual debugging and root-cause documentation.
+ * IMPORTANT: Use TORONET_BASE_URL=https://testnet.toronet.org/api in .env
+ * to query the correct testnet API (chain 54321). The SDK's default
+ * (https://api.toronet.org) returns chain 7777 with different/incorrect data.
+ *
+ * Live test results (2026-06-10): wallet has 300 TORO via correct endpoint!
  *
  * Usage:
  *   npx tsx scripts/verify-live.ts
