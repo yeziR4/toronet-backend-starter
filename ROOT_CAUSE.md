@@ -120,7 +120,7 @@ initializeSDK({
 
 ## Updated Findings After Funded-Wallet Testing
 
-On 2026-06-09, we tested with a real funded wallet
+On 2026-06-09 through 2026-06-10, we tested with a real funded wallet
 (`0xe09729896fa906c336b2Ed36a7A08BB19E5De194`) that is enrolled for TORO
 and has valid credentials:
 
@@ -140,6 +140,78 @@ and has valid credentials:
 
 This confirms the SDK integration is correct — the only missing piece for a
 full state-changing proof is a wallet with non-zero fiat balance.
+
+## Network Mismatch Discovery
+
+On 2026-06-10, a critical architectural discovery was made:
+
+### The Problem
+
+The SDK's mainnet API at `https://api.toronet.org` actually serves **testnet**
+data (chain ID 7777). The real mainnet chain ID is **77777** (0x12fd1).
+
+### Evidence
+
+| Source | Claimed Chain ID | Label |
+|---|---|---|
+| `GET https://api.toronet.org/blockchain/` | 7777 | "testnet" |
+| `GET https://explorer.toronet.org/api/blockchain` | 7777 | "testnet" |
+| `GET http://testnet.toronet.org/blockchain/` | 404 | N/A |
+| Chainlist.org chain/77777 | 77777 | "Toronet Mainnet" |
+| Metaschool RPC guide | 77777 | "Toronet Mainnet" |
+
+### Impact
+
+The wallet's 300 TORO (visible on explorer) likely lives on **mainnet**
+(chain 77777), while the SDK can only query **testnet** (chain 7777) where the
+balance is 0. There is no public mainnet REST API to verify this hypothesis.
+
+- Mainnet RPC at `http://toronet.org/rpc` returns **503 Service Unavailable**
+- Mainnet RPC port 8501 times out
+- No alternative mainnet API was found
+
+### SDK DEFAULT_NETWORKS Mapping
+
+```js
+// SDK source (dist/index.js:284-295):
+var DEFAULT_NETWORKS = {
+  mainnet: {
+    baseURL: "https://api.toronet.org",  // Actually serves testnet (7777)
+    deployerURL: "https://deployer.toronet.org/api/mainnet"
+  },
+  testnet: {
+    baseURL: "http://testnet.toronet.org",  // Returns 404
+    deployerURL: "https://deployer.toronet.org/api/testnet"
+  }
+};
+```
+
+Neither mapping produces correct mainnet data. The `mainnet` base URL returns
+testnet chain data, and the `testnet` base URL returns 404.
+
+### Full API Probe Results
+
+| Endpoint | Status | Notes |
+|---|---|---|
+| `https://api.toronet.org/blockchain/` | ✅ | Returns testnet (7777) |
+| `https://api.toronet.org/token/toro` | ✅ | TORO balance = 0 |
+| `https://api.toronet.org/query` | ✅ | Fiat balances = 0 |
+| `https://api.toronet.org/keystore` | ✅ | Wallet create/import works |
+| `https://explorer.toronet.org/api/blockchain` | ✅ | Same testnet data |
+| `https://toronet.org/api` | ❌ 403 | Forbidden |
+| `https://toronet.org/api/blockchain` | ❌ Timeout | No response |
+| `http://toronet.org/rpc` | ❌ 503 | Mainnet RPC down |
+| `http://toronet.org:8501` | ❌ Timeout | Mainnet RPC port down |
+| `http://testnet.toronet.org/blockchain/` | ❌ 404 | No API endpoint |
+
+### Conclusion
+
+The wallet balance discrepancy (300 TORO on explorer vs 0 via SDK) is best
+explained by an **API_NETWORK_MISMATCH**: the public API only exposes testnet
+data, while the wallet's funds are on mainnet. Without a functioning mainnet
+API endpoint, the discrepancy cannot be resolved programmatically.
+
+See `docs/WALLET_BALANCE_DISCREPANCY.md` for the complete investigation report.
 
 ## Mitigation in This Project
 

@@ -1,13 +1,18 @@
 # Live-Verified Flows
 
-**Date:** 2026-06-09
+**Date:** 2026-06-10
 **Configuration:** `TORONET_NETWORK=mainnet` (SDK defaults to `https://api.toronet.org`)
 **Wallet:** `0xe09729896fa906c336b2Ed36a7A08BB19E5De194` (funded, enrolled for TORO)
 **Test node:** Node v22.22.2, Windows PowerShell 5.1
 
 > All flows were tested against the live Toronet API endpoint
 > `https://api.toronet.org` using the `torosdk` v0.2.0 SDK in ESM/TypeScript
-> mode via `tsx`.
+> mode via `tsx` and direct axios calls.
+
+> **Critical finding:** The API at `https://api.toronet.org` (SDK's mainnet
+> default) reports `chainid=7777` labeled "testnet". The real mainnet chain ID
+> is **77777** (0x12fd1). This means all flows below hit the **testnet** API,
+> not mainnet. See `docs/WALLET_BALANCE_DISCREPANCY.md` for the full report.
 
 ---
 
@@ -187,7 +192,8 @@ GET /tns  { op: "getname", params: [{ name: "addr", value: "0xe0..." }] }
 | 🔑 REQUIRES_ADMIN | 5 | bridge balance, virtual wallet, KYC, enrollment |
 | 💰 REQUIRES_FUNDED_WALLET | 3 | actual transfer, bridging, deployment |
 | 🐛 UPSTREAM_BUG | 2 | TNS `isNameUsed` GET+body |
-| **Total tested** | **26** | |
+| 🌐 API_NETWORK_MISMATCH | 1 | Mainnet (77777) vs API testnet (7777) |
+| **Total tested** | **27** | |
 
 > **Honest assessment:** The Toronet API is reachable and functional for read
 > operations. The transfer endpoints respond correctly with domain-level errors.
