@@ -4,16 +4,44 @@
 
 A production-grade Node.js/TypeScript backend server with deep integration of the **Toronet JS SDK (`torosdk`)** for building on the Toronet blockchain.
 
+## ⚠️ Network Topology — Critical Context
+
+The `torosdk` v0.2.0 ships with incorrect default API URLs. Understanding
+this is essential for any reviewer or user of this project.
+
+### The Three Networks
+
+| Network | Chain ID | API Endpoint | Used By | TORO Balance |
+|---|---|---|---|---|
+| **Testnet (real)** | **54321** | `https://testnet.toronet.org/api` | **This project (after discovery)** | **300 TORO** ✅ |
+| SDK "mainnet" default | 7777 | `https://api.toronet.org` | SDK default — actually testnet data | 0 |
+| Mainnet (chainlist) | 77777 | `http://toronet.org/rpc` (503) | No public API available | Unknown |
+
+### What went wrong
+
+The SDK's `DEFAULT_NETWORKS` maps:
+- `mainnet` → `https://api.toronet.org` — **returns chain 7777** (testnet data, zero balance)
+- `testnet` → `http://testnet.toronet.org` — **returns 404** for all paths
+
+The correct endpoint `https://testnet.toronet.org/api` (chain 54321) was
+discovered via the Toronet Postman collection and is **not** in the SDK.
+
+Set `TORONET_BASE_URL=https://testnet.toronet.org/api` in `.env` to use
+the correct endpoint. See [`ROOT_CAUSE.md`](./ROOT_CAUSE.md) for the full
+investigation and [`docs/WALLET_BALANCE_DISCREPANCY.md`](./docs/WALLET_BALANCE_DISCREPANCY.md)
+for the complete resolution.
+
 ## Features
 
 | Module | Endpoints | SDK Reference |
 |--------|-----------|---------------|
 | **Wallet** | Create, import, verify passwords | `createWallet`, `importWalletFromPrivateKeyAndPassword`, `verifyWalletPassword` |
 | **Blockchain** | Network status, latest block, block by ID, transaction by ID | `getBlockchainStatus`, `getLatestBlockData`, `getBlockById`, `getTransaction` |
-| **Balance** | TORO balance, currency balance (NGN/USD/EUR/GBP), token balance, token info | `getBalance`, `getCurrencyBalance`, `getTokenBalance`, `getTokenName` |
-| **TNS** | Name resolution, address reverse-lookup, availability, register, update, delete | `getAddr`, `getName`, `setName`, `updateName`, `deleteName` |
-| **KYC** | Setup KYC, perform verification, check status, enroll address | `setupKYC`, `performKYCForCustomer`, `isAddressKYCVerified`, `enrollAddress` |
-| **Currency** | Transfer, inter-wallet transfer, supported currencies, exchange rates | `transferCurrency`, `makeInterWalletTransfer`, `getSupportedAssetsExchangeRates` |
+| **Balance** | TORO, fiat, token balances | `getBalance`, `getCurrencyBalance`, `getTokenBalance`, `getTokenName` |
+| **TNS** | Name resolution, reverse-lookup, register, update, delete | `getAddr`, `getName`, `setName`, `updateName`, `deleteName` |
+| **KYC** | Setup, perform, check status, enroll | `setupKYC`, `performKYCForCustomer`, `isAddressKYCVerified`, `enrollAddress` |
+| **Currency** | Fiat transfer, inter-wallet, exchange rates | `transferCurrency`, `makeInterWalletTransfer`, `getSupportedAssetsExchangeRates` |
+| **TORO Transfer** 🆕 | **Custodial TORO token transfer** | **`transferToro()`** — custom, not in torosdk |
 | **Bridge** | Bridge fees (Solana/Polygon/BSC/Base/Arbitrum), bridge transfer, bridge balance | `getBridgeTokenFee*`, `bridgeToken*`, `getBridgeBalance` |
 | **Products** | Create, update, get product | `recordProduct`, `updateProduct`, `getProduct` |
 | **Deployer** | Deploy contract, register, check registration | `deployContract`, `registerContract`, `isContractRegistered` |
@@ -155,17 +183,22 @@ See `.env.example`:
 
 ```
 TORONET_NETWORK=testnet         # "testnet" or "mainnet"
-TORONET_BASE_URL=               # override SDK base URL (optional — see note below)
+TORONET_BASE_URL=               # **MUST override** — SDK default URLs are wrong
 PORT=3000
 HOST=0.0.0.0
 LOG_LEVEL=info                  # debug | info | warn | error
+WALLET_PRIVATE_KEY=             # optional — only needed for custodial TORO transfer
+WALLET_PASSWORD=                # optional — only needed for custodial TORO transfer
 ```
 
-> **⚠️ TORONET_BASE_URL note:** The `torosdk` v0.2.0 default testnet URL
-> (`http://testnet.toronet.org`) returns 404 for all paths. The known-working
-> endpoint is `https://api.toronet.org`. To use it, uncomment
-> `TORONET_BASE_URL=https://api.toronet.org` in your `.env`. For full
-> root-cause analysis, see [`ROOT_CAUSE.md`](./ROOT_CAUSE.md).
+> **⚠️ TORONET_BASE_URL is required.** The `torosdk` v0.2.0 ships with two
+> incorrect defaults:
+> - `mainnet` → `https://api.toronet.org` (returns chain 7777, NOT mainnet)
+> - `testnet` → `http://testnet.toronet.org` (returns 404)
+>
+> **Set it to `https://testnet.toronet.org/api`** to access the real testnet
+> (chain 54321) with actual on-chain data. See [`ROOT_CAUSE.md`](./ROOT_CAUSE.md)
+> for the full investigation.
 
 ## Project Structure
 
@@ -194,46 +227,51 @@ tests/                       Vitest test suite
 ## Live-Verified Flows
 
 This project has been tested against the live Toronet API at
-`https://api.toronet.org` with a real funded wallet. See
-[`LIVE_VERIFIED_FLOWS.md`](./LIVE_VERIFIED_FLOWS.md) for the full
-endpoint-by-endpoint report.
+**`https://testnet.toronet.org/api`** (chain 54321) with a real funded wallet
+holding **300 TORO**. A **custodial TORO transfer was successfully executed**
+on-chain (1 TORO sent, tx `0xad4ef...52071`).
+
+See [`LIVE_VERIFIED_FLOWS.md`](./LIVE_VERIFIED_FLOWS.md) for the full
+endpoint-by-endpoint report (16 passes, 8 expected domain errors/admin-required,
+2 upstream bugs, 1 resolved network mismatch).
 
 ### Quick live verification
 
 ```bash
-# Read-only (no wallet needed)
-npx tsx scripts/verify-live.ts
+# Read-only — no wallet needed, checks blockchain + balances + tx history
+npx tsx scripts/verify-live-proof.ts
 
-# With funded wallet
-export FUNDED_WALLET_PK="<hex private key>"
-export FUNDED_WALLET_ADDR="<0x address>"
-export FUNDED_WALLET_PWD="<password>"
-export RECIPIENT_ADDR="<recipient 0x address>"
+# Full proof with optional transfer (requires WALLET_* in .env)
+npx tsx scripts/verify-live-proof.ts --transfer <recipient> [amount]
+
+# Legacy: individual endpoint tests
 npx tsx scripts/verify-live.ts
 ```
 
-### What's proven live (14 passes)
+### What's proven live (16 passes)
 
 | Flow | Result |
 |---|---|
-| Blockchain status | ✅ Returns testnet chain data |
+| Blockchain status (chain 54321) | ✅ Returns active testnet data |
 | Token name / symbol / decimal | ✅ "Toro" / "TORO" / 18 |
-| Wallet balance | ✅ Returns real balances |
-| Token balance | ✅ Returns real TORO balance |
+| Wallet balance | ✅ **300 TORO** |
+| Token balance | ✅ **300 TORO** |
+| Transaction history | ✅ Mint + Transfer events on-chain |
 | Exchange rates | ✅ Returns 7 fiat currencies |
 | Token supply statistics | ✅ Total cap, circulating, reserving |
 | Enrollment check | ✅ Wallet confirmed enrolled for TORO |
-| Wallet creation | ✅ New address created |
-| Fiat transfer endpoint | ✅ Responds with domain-level error (proves endpoint works) |
+| Wallet creation + key import | ✅ New address created, key imported |
+| **TORO custodial transfer** 🆕 | ✅ **1 TORO sent on-chain (tx confirmed)** |
+| Fiat transfer endpoint | ✅ Reached (0 balance = domain error) |
 
 ## Testing
 
 ```bash
-npm test          # 93 tests (65 SDK module + 28 route-level HTTP)
+npm test          # 98 tests (SDK module + route-level HTTP + axios-mocked TORO transfer)
 npm run test:watch  # watch mode for development
 ```
 
-All tests use mocked SDK calls — no live network required.
+All tests use mocked SDK and axios calls — no live network required.
 
 ### CI Status
 
@@ -270,6 +308,15 @@ This project wraps the following `torosdk` v0.2.0 functions:
 - **Bridge:** `getBridgeTokenFeeSol`, `getBridgeTokenFeePolygon`, `getBridgeTokenFeeBSC`, `getBridgeTokenFeeBase`, `getBridgeTokenFeeArbitrum`, `bridgeTokenSol`, `bridgeTokenPolygon`, `bridgeTokenBSC`, `bridgeTokenBase`, `bridgeTokenArbitrum`, `getBridgeBalance`
 - **Products:** `recordProduct`, `updateProduct`, `getProduct`
 - **Deployer:** `deployContract`, `registerContract`, `isContractRegistered`
+
+### Custom functions (not in torosdk)
+
+These functions hit API endpoints that the SDK does not expose:
+
+| Function | Endpoint | Purpose |
+|---|---|---|
+| `transferToro()` | `POST /api/token/toro/cl` | Custodial TORO token transfer (SDK only does fiat) |
+| `importWalletKey()` | `POST /api/keystore/` | Import private key for custodial signing |
 
 ## Requirements
 
@@ -338,15 +385,16 @@ This project was built for the **Toronet Foundation Bounty** (June 2026).
 - [x] Public GitHub repository
 - [x] README with inline SDK docs
 - [x] Architecture diagram (see `ARCHITECTURE.txt`)
-- [x] Live verification report with real wallet testing
-- [x] Root-cause analysis of upstream limitations
+- [x] Live verification report with real wallet testing (300 TORO proven, 1 TORO transferred on-chain)
+- [x] Root-cause analysis of upstream limitations (incorrect SDK defaults, network topology)
 - [x] Reviewer quickstart for fast verification
 - [x] Demo video (3–8 minutes — submitted separately)
 - [x] 500–1000 word writeup (submitted separately)
 - [x] `.env.example` included
 - [x] Production-grade error handling
 - [x] CI pipeline (GitHub Actions — Node 18/20/22)
-- [x] 93 unit + integration tests (65 SDK module tests + 28 route-level HTTP tests)
+- [x] 98 unit + integration tests (SDK module + route-level HTTP + TORO transfer)
+- [x] TORO token transfer (`transferToro()` — hits endpoint not covered by torosdk)
 
 ## License
 

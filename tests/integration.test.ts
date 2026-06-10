@@ -1,5 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
+vi.mock("axios", () => {
+  const mockPost = vi.fn();
+  const mockGet = vi.fn();
+  return {
+    default: { post: mockPost, get: mockGet },
+    post: mockPost,
+    get: mockGet,
+  };
+});
+
 vi.mock("torosdk", () => {
   const mockSdk = {
     getBlockchainStatus: vi.fn(),
@@ -316,6 +326,59 @@ describe("Currency SDK", () => {
     const { getExchangeRates } = await import("../src/sdk/currency.js");
     const rates = await getExchangeRates();
     expect(rates.TORO_USD).toBe(0.5);
+  });
+
+  it("imports wallet key successfully (custodial keystore)", async () => {
+    const axios = await import("axios");
+    (axios.default.post as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: { result: true, address: "0xabc" },
+    });
+    const { importWalletKey } = await import("../src/sdk/currency.js");
+    const addr = await importWalletKey({ privateKey: "0xpk", password: "pwd" });
+    expect(addr).toBe("0xabc");
+  });
+
+  it("throws SdkError on importWalletKey failure", async () => {
+    const axios = await import("axios");
+    (axios.default.post as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: { result: false, error: "duplicate key" },
+    });
+    const { importWalletKey } = await import("../src/sdk/currency.js");
+    const { SdkError } = await import("../src/types/errors.js");
+    await expect(importWalletKey({ privateKey: "0xpk", password: "pwd" })).rejects.toThrow(SdkError);
+  });
+
+  it("transfers TORO successfully (custodial POST)", async () => {
+    const axios = await import("axios");
+    (axios.default.post as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: { result: true },
+    });
+    const { transferToro } = await import("../src/sdk/currency.js");
+    const result = await transferToro({
+      senderAddr: "0xa",
+      senderPwd: "pwd",
+      receiverAddr: "0xb",
+      amount: "1",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("throws ValidationError on transferToro with missing fields", async () => {
+    const { transferToro } = await import("../src/sdk/currency.js");
+    const { ValidationError } = await import("../src/types/errors.js");
+    await expect(transferToro({} as any)).rejects.toThrow(ValidationError);
+  });
+
+  it("throws SdkError on transferToro API failure", async () => {
+    const axios = await import("axios");
+    (axios.default.post as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: { result: false, error: "insufficient balance" },
+    });
+    const { transferToro } = await import("../src/sdk/currency.js");
+    const { SdkError } = await import("../src/types/errors.js");
+    await expect(
+      transferToro({ senderAddr: "0xa", senderPwd: "pwd", receiverAddr: "0xb", amount: "999" }),
+    ).rejects.toThrow(SdkError);
   });
 });
 

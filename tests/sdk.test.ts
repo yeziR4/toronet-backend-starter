@@ -93,6 +93,8 @@ describe("SDK Integration Layer", () => {
     const curr = await import("../src/sdk/currency.js");
     expect(typeof curr.transferCurrency).toBe("function");
     expect(typeof curr.makeInterWalletTransfer).toBe("function");
+    expect(typeof curr.transferToro).toBe("function");
+    expect(typeof curr.importWalletKey).toBe("function");
     expect(typeof curr.getSupportedCurrencies).toBe("function");
     expect(typeof curr.getExchangeRates).toBe("function");
   });
