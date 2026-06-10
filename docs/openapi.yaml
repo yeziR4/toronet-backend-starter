@@ -1,3 +1,6 @@
+# 🔄 Keep this spec aligned with src/routes/ when adding or changing endpoints.
+# Adding a route without updating this file creates a drift liability.
+
 openapi: "3.0.3"
 info:
   title: Toronet Backend Starter Kit
