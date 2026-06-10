@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
 
+vi.mock("../src/utils/logger.js", () => ({
+  logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), fatal: vi.fn(), debug: vi.fn(), child: vi.fn(() => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn(), fatal: vi.fn(), debug: vi.fn() })) },
+}));
+
 vi.mock("axios");
 
 vi.mock("torosdk", () => {

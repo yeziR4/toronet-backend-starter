@@ -1,5 +1,9 @@
 import { describe, it, expect, vi } from "vitest";
 
+vi.mock("../src/utils/logger.js", () => ({
+  logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), fatal: vi.fn(), debug: vi.fn(), child: vi.fn(() => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn(), fatal: vi.fn(), debug: vi.fn() })) },
+}));
+
 vi.mock("torosdk", () => ({
   initializeSDK: vi.fn(),
   getSDKConfig: vi.fn(() => ({ getConfig: () => ({ network: "testnet" }) })),
