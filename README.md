@@ -13,9 +13,18 @@ this is essential for any reviewer or user of this project.
 
 | Network | Chain ID | API Endpoint | Used By | TORO Balance |
 |---|---|---|---|---|
-| **Testnet (real)** | **54321** | `https://testnet.toronet.org/api` | **This project (after discovery)** | **300 TORO** ✅ |
+| **Testnet (real)** | **54321** | `https://testnet.toronet.org/api` | **This project (after discovery)** | **299 TORO** ✅ (was 300 before 1 TORO transfer) |
 | SDK "mainnet" default | 7777 | `https://api.toronet.org` | SDK default — actually testnet data | 0 |
 | Mainnet (chainlist) | 77777 | `http://toronet.org/rpc` (503) | No public API available | Unknown |
+
+### Balance Timeline
+
+| Event | Amount | Tx / Note |
+|---|---|---|
+| Minted to sender (`0xe097...De194`) | **+300 TORO** | `0x0895...2919` |
+| Custodial transfer to `0xdbec...D179` | **−1 TORO** | `0xad4ef...52071` |
+| **Sender current** | **299 TORO** | Verified via correct API |
+| **Recipient current** | **1 TORO** | Verified via correct API |
 
 ### What went wrong
 
@@ -228,7 +237,7 @@ tests/                       Vitest test suite
 
 This project has been tested against the live Toronet API at
 **`https://testnet.toronet.org/api`** (chain 54321) with a real funded wallet
-holding **300 TORO**. A **custodial TORO transfer was successfully executed**
+(originally **300 TORO**, current **299 TORO** after 1 TORO transfer). A **custodial TORO transfer was successfully executed**
 on-chain (1 TORO sent, tx `0xad4ef...52071`).
 
 See [`LIVE_VERIFIED_FLOWS.md`](./LIVE_VERIFIED_FLOWS.md) for the full
@@ -254,8 +263,8 @@ npx tsx scripts/verify-live.ts
 |---|---|
 | Blockchain status (chain 54321) | ✅ Returns active testnet data |
 | Token name / symbol / decimal | ✅ "Toro" / "TORO" / 18 |
-| Wallet balance | ✅ **300 TORO** |
-| Token balance | ✅ **300 TORO** |
+| Wallet balance | ✅ **299 TORO** (was 300 before 1 TORO transfer) |
+| Token balance | ✅ **299 TORO** (was 300 before 1 TORO transfer) |
 | Transaction history | ✅ Mint + Transfer events on-chain |
 | Exchange rates | ✅ Returns 7 fiat currencies |
 | Token supply statistics | ✅ Total cap, circulating, reserving |
@@ -385,7 +394,7 @@ This project was built for the **Toronet Foundation Bounty** (June 2026).
 - [x] Public GitHub repository
 - [x] README with inline SDK docs
 - [x] Architecture diagram (see `ARCHITECTURE.txt`)
-- [x] Live verification report with real wallet testing (300 TORO proven, 1 TORO transferred on-chain)
+- [x] Live verification report with real wallet testing (minted 300 TORO, 1 TORO transferred on-chain, sender now 299 TORO)
 - [x] Root-cause analysis of upstream limitations (incorrect SDK defaults, network topology)
 - [x] Reviewer quickstart for fast verification
 - [x] Demo video (3–8 minutes — submitted separately)

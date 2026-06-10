@@ -92,7 +92,7 @@ var DEFAULT_NETWORKS = {
 ```
 
 **Both defaults are wrong.** The correct testnet API endpoint is:
-`https://testnet.toronet.org/api` (chain 54321, real on-chain balance = 300 TORO).
+`https://testnet.toronet.org/api` (chain 54321, real on-chain balance = 299 TORO current, was 300 before 1 TORO transfer).
 
 The SDK's mainnet default (`https://api.toronet.org`) returns chain ID 7777 with
 zero balances, while the SDK's testnet default (`http://testnet.toronet.org`)
@@ -105,7 +105,7 @@ The SDK constructor supports a `baseURL` override:
 ```ts
 initializeSDK({
   network: "testnet",
-  baseURL: "https://testnet.toronet.org/api"  // ✅ Correct endpoint (chain 54321, 300 TORO)
+  baseURL: "https://testnet.toronet.org/api"  // ✅ Correct endpoint (chain 54321, 299 TORO current, was 300 before transfer)
 });
 ```
 
@@ -114,7 +114,7 @@ initializeSDK({
 | Endpoint | Chain ID | Label | TORO Balance |
 |---|---|---|---|
 | `https://api.toronet.org` (SDK mainnet default) | 7777 | "testnet" | 0 |
-| `https://testnet.toronet.org/api` (correct endpoint) | 54321 | "testnet" | **300** |
+| `https://testnet.toronet.org/api` (correct endpoint) | 54321 | "testnet" | **299** (was 300) |
 | `https://toronet.org` (chainlist mainnet) | 77777 | "mainnet" | Unknown (RPC down) |
 
 ## Limitations That Persist Even With Correct URL
@@ -166,8 +166,9 @@ Using this endpoint instead of `https://api.toronet.org`:
 - No fiat balance to execute fiat transfer
 - No native TORO transfer function in SDK v0.2.0
 
-This confirms the SDK integration is correct — the wallet has 300 TORO on-chain
-but the SDK lacks a TORO transfer function, and the fiat balance is zero.
+This confirms the SDK integration is correct — the wallet originally had 300 TORO on-chain
+(current 299 TORO after 1 TORO transfer), but the SDK lacks a TORO transfer function,
+and the fiat balance is zero.
 
 ## Network Topology (Corrected)
 
@@ -178,7 +179,7 @@ topology is now understood:
 
 | Network | Chain ID | API Endpoint | TORO Balance | Status |
 |---|---|---|---|---|
-| **Testnet (correct)** | **54321** | `https://testnet.toronet.org/api` | **300 TORO** ✅ | Full REST API available |
+| **Testnet (correct)** | **54321** | `https://testnet.toronet.org/api` | **299 TORO** ✅ (was 300) | Full REST API available |
 | Mismatched API | 7777 | `https://api.toronet.org` | 0 | SDK mainnet default — serves different data |
 | Mainnet (chainlist) | 77777 | `http://toronet.org/rpc` (503) | Unknown | RPC down |
 
@@ -186,7 +187,7 @@ topology is now understood:
 
 | Endpoint | Status | Chain ID | Balance |
 |---|---|---|---|
-| `https://testnet.toronet.org/api/token/toro/` | ✅ | 54321 | **300 TORO** |
+| `https://testnet.toronet.org/api/token/toro/` | ✅ | 54321 | **299 TORO** (was 300) |
 | `https://testnet.toronet.org/api/query` | ✅ | 54321 | Multi-currency |
 | `https://testnet.toronet.org/api/blockchain` | ✅ | 54321 | Live blocks |
 | `https://testnet.toronet.org/api/keystore` | ✅ | 54321 | Wallet create/import |
@@ -200,9 +201,9 @@ topology is now understood:
 
 ### Conclusion
 
-The wallet has **300 TORO** on the testnet at chain ID 54321, accessible via
-`https://testnet.toronet.org/api`. The SDK's incorrect default URLs caused the
-discrepancy.
+The wallet originally had **300 TORO** on the testnet at chain ID 54321 (current **299 TORO**
+after 1 TORO transfer), accessible via `https://testnet.toronet.org/api`. The SDK's
+incorrect default URLs caused the discrepancy.
 
 **TORO transfer IS possible** via custodial `POST /api/token/toro/cl` with
 `clientpwd` — successfully executed on 2026-06-10:
@@ -231,7 +232,7 @@ See `docs/WALLET_BALANCE_DISCREPANCY.md` for the complete investigation.
    crashing the server
 3. **Smoke test defaults to offline mode** — `SMOKE_LIVE=1` enables strict live
    validation; default mode skips unreachable endpoints
-4. **93 unit/integration tests use mocked SDK** — CI pipeline does not depend
+4. **98 unit/integration tests use mocked SDK** — CI pipeline does not depend
    on live network
 5. **`scripts/verify-live.ts`** provides rigorous end-to-end verification
    against the actual Toronet API

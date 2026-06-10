@@ -2,8 +2,8 @@
 
 ## Status: ✅ RESOLVED — Correct API Endpoint Found
 
-The funded wallet `0xe09729896fa906c336b2Ed36a7A08BB19E5De194` has **300 TORO**
-on-chain when queried through the correct API endpoint.
+The funded wallet `0xe09729896fa906c336b2Ed36a7A08BB19E5De194` was minted **300 TORO**
+on-chain (current: **299 TORO** after 1 TORO transfer to `0xdbec...D179`).
 
 The discrepancy was caused by using the wrong API base URL, not by any
 network/state difference.
@@ -52,7 +52,7 @@ Neither default points to the actual working API. The correct endpoint is:
 |---|---|---|---|
 | `https://api.toronet.org/blockchain/` | 7777 | 0 | ❌ SDK mainnet default |
 | `http://testnet.toronet.org/blockchain/` | 404 | N/A | ❌ SDK testnet default |
-| **`https://testnet.toronet.org/api/blockchain`** | **54321** | **300** | ✅ Correct API |
+| **`https://testnet.toronet.org/api/blockchain`** | **54321** | **299** (was 300) | ✅ Correct API |
 
 The correct URL was documented in the Toronet Postman collection at
 `documenter.getpostman.com/view/20880049/2s93kz555m`.
@@ -75,7 +75,7 @@ The correct URL was documented in the Toronet Postman collection at
 │            https://testnet.toronet.org/api                   │
 │  ┌─────────────────────────────────────────────────────┐   │
 │  │  GET /blockchain    → chain=testnet, chainid=54321  │   │
-│  │  GET /token/toro/   → balance=300 TORO             │   │
+│  │  GET /token/toro/   → balance=299 TORO (was 300)   │   │
 │  │  POST /query        → TORO=300, fiat=0             │   │
 │  │  POST /keystore     → wallet create/import          │   │
 │  │  GET /query         → tx history: Mint of 300 TORO │   │
@@ -99,8 +99,8 @@ All endpoints via `https://testnet.toronet.org/api`:
 | Operation | Method | Endpoint | Status | Response |
 |---|---|---|---|---|
 | Blockchain status | GET | `/blockchain` | ✅ | chain 54321, 28M+ blocks |
-| TORO balance | GET | `/token/toro/` | ✅ | **300 TORO** |
-| Multi-currency balance | GET | `/query` | ✅ | TORO=300, fiat=0 |
+| TORO balance | GET | `/token/toro/` | ✅ | **299 TORO** (was 300) |
+| Multi-currency balance | GET | `/query` | ✅ | TORO=299 (was 300), fiat=0 |
 | Wallet role | GET | `/query` | ✅ | "client" |
 | TORO tx history | GET | `/query` | ✅ | Mint of 300 TORO |
 | Token metadata | GET | `/token/toro/` | ✅ | name/symbol/decimal |
@@ -111,6 +111,7 @@ All endpoints via `https://testnet.toronet.org/api`:
 | Import key | POST | `/keystore/` | ✅ | Duplicate detected |
 | Fiat transfer | POST | `/currency/*/cl` | ✅ | Domain error (0 balance) |
 | **TORO transfer** | GET | `/token/toro/` | ❌ | "invalid operation" |
+| **TORO transfer (custodial)** | POST | `/token/toro/cl` | ✅ | 1 TORO sent, tx `0xad4ef...52071` |
 | TNS isNameUsed | GET | `/tns` | ❌ | Invalid payload |
 | Deploy contract | POST | deployer URL | ❌ | Prisma error |
 
@@ -140,7 +141,7 @@ This directly links the wallet to the 300 TORO via a specific on-chain event. �
 
 - **Wallet address**: `0xe09729896fa906c336b2Ed36a7A08BB19E5De194`
 - **Wallet enrolled for TORO**: ✅ `true`
-- **TORO balance via correct API**: **300 TORO** ✅
+- **TORO balance via correct API**: **300 TORO** (minted, pre-transfer); current **299 TORO** after 1 TORO transfer ✅
 - **TORO balance via SDK default URL**: 0 (was using wrong API)
 - **Fiat balances**: `{NGN:0, USD:0}` (wallet has no fiat deposits)
 - **Reserve address**: `0xa231BB16803d8F7dcb6885B04183c9E71F4cdDF3`
@@ -159,10 +160,11 @@ This directly links the wallet to the 300 TORO via a specific on-chain event. �
 
 ## Conclusion
 
-The wallet balance discrepancy is **RESOLVED**. The wallet has 300 TORO on-chain
-at chain ID 54321, accessible via `https://testnet.toronet.org/api`. The
-incorrect balance of 0 was caused by querying the wrong API endpoint
-(`https://api.toronet.org`), which serves different blockchain data.
+The wallet balance discrepancy is **RESOLVED**. The wallet was minted 300 TORO on-chain
+at chain ID 54321 (current: **299 TORO** after 1 TORO transfer to `0xdbec...D179`),
+accessible via `https://testnet.toronet.org/api`. The incorrect balance of 0 was caused
+by querying the wrong API endpoint (`https://api.toronet.org`), which serves different
+blockchain data.
 
 **TORO transfer is possible** via custodial POST to `/api/token/toro/cl` with
 `clientpwd`. Successfully executed on 2026-06-10 (1 TORO sent, tx hash

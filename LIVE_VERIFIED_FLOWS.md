@@ -2,7 +2,7 @@
 
 **Date:** 2026-06-10 (updated with correct API endpoint)
 **Configuration:** `TORONET_NETWORK=testnet`, `TORONET_BASE_URL=https://testnet.toronet.org/api`
-**Wallet:** `0xe09729896fa906c336b2Ed36a7A08BB19E5De194` (funded, enrolled for TORO — **300 TORO confirmed**)
+**Wallet:** `0xe09729896fa906c336b2Ed36a7A08BB19E5De194` (funded, enrolled for TORO — originally **300 TORO**, current **299 TORO** after 1 TORO transfer to `0xdbec...D179`)
 **Test node:** Node v22.22.2, Windows PowerShell 5.1
 
 > All flows were tested against the correct Toronet testnet API endpoint
@@ -12,7 +12,7 @@
 > **Historical note:** An earlier round of testing used the SDK's default
 > `https://api.toronet.org` (chain 7777), which returned 0 TORO balance.
 > The correct endpoint `https://testnet.toronet.org/api` (chain 54321)
-> reveals the true balance of **300 TORO**. See
+> revealed the true balance of **300 TORO** (current after transfer: **299 TORO**). See
 > `docs/WALLET_BALANCE_DISCREPANCY.md` for the complete investigation.
 
 ---
@@ -59,14 +59,14 @@ GET /token/toro  (GET with JSON body: { op: "getdecimal", params: [] })
 POST /query  { op: "getaddrbalance", params: [{ name: "addr", value: "0xe0..." }] }
 → {"ngnBalance":0,"usdBalance":0,"toroGBalance":"300"}
 ```
-**Verdict: PASS** — wallet has **300 TORO**, 0 fiat balance.
+**Verdict: PASS** — wallet originally had **300 TORO** (current **299 TORO** after 1 TORO transfer), 0 fiat balance.
 
 ### 4. Token Balance
 ```
 GET /token/toro  (via correct API: { op: "getbalance", params: [...] })
 → {"result":true,"balance":"300","message":"toro balance for '0xe0...' is '300'"}
 ```
-**Verdict: PASS** — wallet has **300 TORO** token balance ✅
+**Verdict: PASS** — wallet originally had **300 TORO** (current **299 TORO** after 1 TORO transfer) ✅
 
 ### 5. Exchange Rates
 ```
@@ -215,7 +215,7 @@ GET /tns  { op: "getname", params: [{ name: "addr", value: "0xe0..." }] }
 
 | Category | Count | Examples |
 |---|---|---|
-| ✅ PASS | **16** | blockchain, token metadata, **300 TORO balance**, tx history, supply, enrollment, wallet creation, **TORO transfer** |
+| ✅ PASS | **16** | blockchain, token metadata, **TORO balance (300→299 after transfer)**, tx history, supply, enrollment, wallet creation, **TORO transfer** |
 | ~ EXPECTED_DOMAIN_ERROR | 1 | fiat transfer attempts (insufficient balance) |
 | 🔑 REQUIRES_ADMIN | 5 | bridge balance, virtual wallet, KYC, enrollment |
 | 💰 REQUIRES_FUNDED_WALLET | 2 | actual fiat transfer, bridging |
@@ -224,8 +224,8 @@ GET /tns  { op: "getname", params: [{ name: "addr", value: "0xe0..." }] }
 | **Total tested** | **27** | |
 
 > **Honest assessment:** The wallet balance discrepancy is **RESOLVED**. The
-> wallet has **300 TORO** on chain 54321 accessible via
-> `https://testnet.toronet.org/api`. A **custodial TORO transfer was executed
-> successfully** (1 TORO sent, tx confirmed on-chain). The remaining limitation
-> is no fiat balance for fiat transfer testing. These are infrastructure
-> limitations, not code defects.
+> wallet originally had **300 TORO** (current **299 TORO** after 1 TORO transfer)
+> on chain 54321 accessible via `https://testnet.toronet.org/api`. A **custodial
+> TORO transfer was executed successfully** (1 TORO sent, tx confirmed on-chain).
+> The remaining limitation is no fiat balance for fiat transfer testing. These are
+> infrastructure limitations, not code defects.
