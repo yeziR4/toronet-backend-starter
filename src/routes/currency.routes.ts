@@ -51,6 +51,35 @@ router.post(
   }),
 );
 
+router.post(
+  "/toro/transfer",
+  asyncWrap(async (req, res) => {
+    const { senderAddr, senderPwd, receiverAddr, amount } = req.body;
+    if (!senderAddr || !senderPwd || !receiverAddr || !amount) {
+      throw new ValidationError("senderAddr, senderPwd, receiverAddr, and amount are required");
+    }
+    const result = await currency.transferToro({
+      senderAddr,
+      senderPwd,
+      receiverAddr,
+      amount,
+    });
+    sendSuccess(res, result);
+  }),
+);
+
+router.post(
+  "/toro/import-key",
+  asyncWrap(async (req, res) => {
+    const { privateKey, password } = req.body;
+    if (!privateKey || !password) {
+      throw new ValidationError("privateKey and password are required");
+    }
+    const result = await currency.importWalletKey({ privateKey, password });
+    sendSuccess(res, result, 201);
+  }),
+);
+
 router.get(
   "/supported",
   asyncWrap(async (_req, res) => {

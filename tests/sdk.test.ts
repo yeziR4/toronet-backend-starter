@@ -120,3 +120,4 @@ describe("SDK Integration Layer", () => {
     expect(typeof dep.isContractRegistered).toBe("function");
   });
 });
+

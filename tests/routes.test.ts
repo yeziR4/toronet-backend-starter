@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
 
+vi.mock("axios");
+
 vi.mock("torosdk", () => {
   const mockSdk = {
     initializeSDK: vi.fn(),
@@ -241,6 +243,72 @@ describe("Currency routes", () => {
       .post("/api/currency/transfer")
       .send({});
     expect(res.status).toBe(400);
+  });
+
+  it("POST /api/currency/toro/transfer — success", async () => {
+    vi.isFakeDate?.();
+    const axios = await import("axios");
+    (axios.default.post as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: { result: true },
+    });
+    const res = await request
+      .post("/api/currency/toro/transfer")
+      .send({ senderAddr: "0x1234567890abcdef1234567890abcdef12345678", senderPwd: "pwd", receiverAddr: "0xabcdef1234567890abcdef1234567890abcdef12", amount: "1" });
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data.success).toBe(true);
+  });
+
+  it("POST /api/currency/toro/transfer — 400 on missing fields", async () => {
+    const res = await request
+      .post("/api/currency/toro/transfer")
+      .send({});
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe("VALIDATION_ERROR");
+  });
+
+  it("POST /api/currency/toro/transfer — 502 on SDK error", async () => {
+    vi.isFakeDate?.();
+    const axios = await import("axios");
+    (axios.default.post as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("network error"));
+    const res = await request
+      .post("/api/currency/toro/transfer")
+      .send({ senderAddr: "0x1234567890abcdef1234567890abcdef12345678", senderPwd: "pwd", receiverAddr: "0xabcdef1234567890abcdef1234567890abcdef12", amount: "1" });
+    expect(res.status).toBe(502);
+    expect(res.body.error.code).toBe("SDK_ERROR");
+  });
+
+  it("POST /api/currency/toro/import-key — success", async () => {
+    vi.isFakeDate?.();
+    const axios = await import("axios");
+    (axios.default.post as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: { result: true, address: "0x1234567890abcdef1234567890abcdef12345678" },
+    });
+    const res = await request
+      .post("/api/currency/toro/import-key")
+      .send({ privateKey: "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef", password: "pwd" });
+    expect(res.status).toBe(201);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data.address).toBe("0x1234567890abcdef1234567890abcdef12345678");
+  });
+
+  it("POST /api/currency/toro/import-key — 400 on missing fields", async () => {
+    const res = await request
+      .post("/api/currency/toro/import-key")
+      .send({});
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe("VALIDATION_ERROR");
+  });
+
+  it("POST /api/currency/toro/import-key — 502 on SDK error", async () => {
+    vi.isFakeDate?.();
+    const axios = await import("axios");
+    (axios.default.post as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("network error"));
+    const res = await request
+      .post("/api/currency/toro/import-key")
+      .send({ privateKey: "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef", password: "pwd" });
+    expect(res.status).toBe(502);
+    expect(res.body.error.code).toBe("SDK_ERROR");
   });
 });
 

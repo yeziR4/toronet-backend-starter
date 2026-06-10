@@ -7,15 +7,39 @@ function sdk() {
   return getSDK();
 }
 
-const TORO_TOKEN_URL = () =>
-  (env.TORONET_BASE_URL ?? "https://testnet.toronet.org/api") + "/token/toro/cl";
+function baseURL(): string {
+  return env.TORONET_BASE_URL ?? "https://testnet.toronet.org/api";
+}
 
-const KEYSTORE_URL = () =>
-  (env.TORONET_BASE_URL ?? "https://testnet.toronet.org/api") + "/keystore/";
+const TORO_TOKEN_URL = () => baseURL() + "/token/toro/cl";
+const KEYSTORE_URL = () => baseURL() + "/keystore/";
 
 export interface TransferResult {
   success: boolean;
   txHash?: string;
+}
+
+export interface ToroTransferResult {
+  success: boolean;
+  txHash?: string;
+  sender?: string;
+  receiver?: string;
+  amount?: string;
+}
+
+export interface WalletKeyResult {
+  success: boolean;
+  address: string;
+  message?: string;
+}
+
+function isValidAddress(addr: string): boolean {
+  return /^0x[a-fA-F0-9]{40}$/.test(addr);
+}
+
+function isPositiveAmount(amt: string): boolean {
+  const n = Number(amt);
+  return !Number.isNaN(n) && n > 0 && /^\d+(\.\d+)?$/.test(amt);
 }
 
 /**
@@ -117,24 +141,34 @@ export async function getExchangeRates(): Promise<Record<string, unknown>> {
  * This function POSTs directly to that endpoint with the wallet password
  * for server-side keystore signing (custodial mode).
  *
- * The API response does not include a tx hash directly, so the hash is
- * retrieved from the sender's transaction history after the transfer.
- *
  * Prerequisites:
  *   - sender's private key must be imported into the API keystore
+ *     (use importWalletKey() first)
  *   - sender must have sufficient TORO balance
  *   - sender and recipient must both be enrolled for TORO
  *
- * @returns txHash on success
+ * The API POST response does not include a tx hash. If you need the
+ * on-chain transaction ID, query the transaction history after calling
+ * this function (or pass fetchTxHash=true).
  */
 export async function transferToro(params: {
   senderAddr: string;
   senderPwd: string;
   receiverAddr: string;
   amount: string;
-}): Promise<TransferResult> {
+  fetchTxHash?: boolean;
+}): Promise<ToroTransferResult> {
   if (!params.senderAddr || !params.senderPwd || !params.receiverAddr || !params.amount) {
     throw new ValidationError("senderAddr, senderPwd, receiverAddr, and amount are required");
+  }
+  if (!isValidAddress(params.senderAddr)) {
+    throw new ValidationError("senderAddr must be a valid 0x-hex address (42 characters)");
+  }
+  if (!isValidAddress(params.receiverAddr)) {
+    throw new ValidationError("receiverAddr must be a valid 0x-hex address (42 characters)");
+  }
+  if (!isPositiveAmount(params.amount)) {
+    throw new ValidationError("amount must be a positive number");
   }
   try {
     const response = await axios.post(TORO_TOKEN_URL(), {
@@ -146,58 +180,71 @@ export async function transferToro(params: {
         { name: "val", value: params.amount },
       ],
     });
-    if (response.data.result === false) {
-      throw new Error(response.data.error ?? "transfer failed");
+    if (!response.data || typeof response.data !== "object") {
+      throw new Error("malformed response from API");
     }
-    // POST response doesn't include tx hash; query history to find it
-    await sleep(2000);
-    const txHash = await findLatestTx(params.senderAddr, params.receiverAddr);
-    return { success: true, txHash };
+    if (response.data.result === false) {
+      const errMsg = response.data.error ?? "transfer failed";
+      throw new Error(errMsg);
+    }
+    let txHash: string | undefined;
+    if (params.fetchTxHash) {
+      txHash = await findLatestTx(params.senderAddr, params.receiverAddr);
+    }
+    return {
+      success: true,
+      txHash,
+      sender: params.senderAddr,
+      receiver: params.receiverAddr,
+      amount: params.amount,
+    };
   } catch (err) {
-    throw new SdkError(
-      "transferToro",
-      err instanceof Error ? err.message : String(err),
-    );
+    const message = err instanceof Error ? err.message : String(err);
+    if (err instanceof ValidationError) throw err;
+    throw new SdkError("transferToro", message);
   }
 }
 
 async function findLatestTx(senderAddr: string, receiverAddr: string): Promise<string | undefined> {
   try {
-    const resp = await axios.get(
-      (env.TORONET_BASE_URL ?? "https://testnet.toronet.org/api") + "/query",
-      {
-        data: {
-          op: "getaddrtransactions_toro",
-          params: [
-            { name: "addr", value: receiverAddr },
-            { name: "count", value: "5" },
-          ],
-        },
+    const resp = await axios.get(baseURL() + "/query", {
+      data: {
+        op: "getaddrtransactions_toro",
+        params: [
+          { name: "addr", value: receiverAddr },
+          { name: "count", value: "5" },
+        ],
       },
-    );
+    });
     const txs = resp.data?.data;
     if (Array.isArray(txs) && txs.length > 0) {
       const match = txs.find((tx: { EV_From?: string }) => tx.EV_From?.toLowerCase() === senderAddr.toLowerCase());
       return match?.EV_Hash;
     }
   } catch {
-    // tx hash is best-effort
+    // tx hash retrieval is best-effort
   }
-  return undefined;
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((r) => setTimeout(r, ms));
 }
 
 /**
  * Import a private key into the API keystore.
  * Required before using transferToro in custodial mode.
+ *
+ * Returns a normalized WalletKeyResult with the imported address.
  */
 export async function importWalletKey(params: {
   privateKey: string;
   password: string;
-}): Promise<string> {
+}): Promise<WalletKeyResult> {
+  if (!params.privateKey) {
+    throw new ValidationError("privateKey is required");
+  }
+  if (!params.password) {
+    throw new ValidationError("password is required");
+  }
+  if (!/^0x[a-fA-F0-9]{64}$/.test(params.privateKey)) {
+    throw new ValidationError("privateKey must be a 64-char hex string with 0x prefix");
+  }
   try {
     const response = await axios.post(KEYSTORE_URL(), {
       op: "importkey",
@@ -206,12 +253,24 @@ export async function importWalletKey(params: {
         { name: "pwd", value: params.password },
       ],
     });
-    if (!response.data.result) throw new Error(response.data.error ?? "import failed");
-    return response.data.address as string;
+    if (!response.data || typeof response.data !== "object") {
+      throw new Error("malformed response from API");
+    }
+    if (!response.data.result) {
+      const errMsg = response.data.error ?? "import failed";
+      if (errMsg.toLowerCase().includes("duplicate") || errMsg.toLowerCase().includes("already")) {
+        return { success: true, address: response.data.address ?? "", message: errMsg };
+      }
+      throw new Error(errMsg);
+    }
+    const address = response.data.address as string;
+    if (!address || !isValidAddress(address)) {
+      throw new Error(`unexpected response shape: address missing or invalid`);
+    }
+    return { success: true, address, message: "key imported" };
   } catch (err) {
-    throw new SdkError(
-      "importWalletKey",
-      err instanceof Error ? err.message : String(err),
-    );
+    const message = err instanceof Error ? err.message : String(err);
+    if (err instanceof ValidationError) throw err;
+    throw new SdkError("importWalletKey", message);
   }
 }

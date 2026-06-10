@@ -1,0 +1,270 @@
+openapi: "3.0.3"
+info:
+  title: Toronet Backend Starter Kit
+  version: "1.0.0"
+  description: |
+    Production-grade Node.js/TypeScript backend starter kit with deep
+    integration of the Toronet JS SDK (torosdk). Covers wallet, blockchain,
+    balance, TNS, KYC, fiat/TORO transfers, bridge, products, and deployer.
+servers:
+  - url: http://localhost:3000
+    description: Local dev server
+  - url: https://testnet.toronet.org/api
+    description: Toronet testnet (direct API — chain 54321)
+paths:
+  /api/wallet/create:
+    post:
+      summary: Create a new wallet
+      tags: [Wallet]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [password]
+              properties:
+                username:
+                  type: string
+                  description: Optional username (defaults to "default")
+                password:
+                  type: string
+                  description: Keystore encryption password
+      responses:
+        "201":
+          description: Wallet created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "502":
+          $ref: "#/components/responses/SdkError"
+  /api/wallet/import:
+    post:
+      summary: Import wallet from private key
+      tags: [Wallet]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [privateKey, password]
+              properties:
+                privateKey:
+                  type: string
+                  description: 64-char hex private key with 0x prefix
+                password:
+                  type: string
+                  description: Keystore encryption password
+      responses:
+        "200":
+          description: Wallet imported
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "502":
+          $ref: "#/components/responses/SdkError"
+  /api/currency/toro/import-key:
+    post:
+      summary: Import private key into API keystore (required before TORO transfer)
+      tags: [TORO Transfer]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [privateKey, password]
+              properties:
+                privateKey:
+                  type: string
+                  description: 64-char hex private key with 0x prefix
+                password:
+                  type: string
+                  description: Keystore password
+      responses:
+        "201":
+          description: Key imported
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - properties:
+                      data:
+                        type: object
+                        properties:
+                          success:
+                            type: boolean
+                          address:
+                            type: string
+                            description: Imported wallet address
+                          message:
+                            type: string
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "502":
+          $ref: "#/components/responses/SdkError"
+  /api/currency/toro/transfer:
+    post:
+      summary: Custodial TORO token transfer
+      tags: [TORO Transfer]
+      description: |
+        Transfer TORO tokens between wallets via the custodial API.
+        Sender's private key must be imported via /api/currency/toro/import-key first.
+        The torosdk v0.2.0 has no method for this — this endpoint wraps the
+        /token/toro/cl POST endpoint directly.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [senderAddr, senderPwd, receiverAddr, amount]
+              properties:
+                senderAddr:
+                  type: string
+                  pattern: "^0x[a-fA-F0-9]{40}$"
+                senderPwd:
+                  type: string
+                receiverAddr:
+                  type: string
+                  pattern: "^0x[a-fA-F0-9]{40}$"
+                amount:
+                  type: string
+                  description: Positive number as string
+      responses:
+        "200":
+          description: Transfer executed
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - properties:
+                      data:
+                        type: object
+                        properties:
+                          success:
+                            type: boolean
+                          txHash:
+                            type: string
+                            nullable: true
+                          sender:
+                            type: string
+                          receiver:
+                            type: string
+                          amount:
+                            type: string
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "502":
+          $ref: "#/components/responses/SdkError"
+  /api/balance/{address}:
+    get:
+      summary: Get wallet balance (TORO + fiat)
+      tags: [Balance]
+      parameters:
+        - name: address
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: "^0x[a-fA-F0-9]{40}$"
+      responses:
+        "200":
+          description: Balance data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "502":
+          $ref: "#/components/responses/SdkError"
+  /api/blockchain/status:
+    get:
+      summary: Get blockchain network status
+      tags: [Blockchain]
+      responses:
+        "200":
+          description: Chain status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "502":
+          $ref: "#/components/responses/SdkError"
+  /health:
+    get:
+      summary: Health check
+      tags: [System]
+      responses:
+        "200":
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+components:
+  schemas:
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          type: object
+    ApiError:
+      type: object
+      properties:
+        success:
+          type: boolean
+          enum: [false]
+        error:
+          type: object
+          properties:
+            message:
+              type: string
+            code:
+              type: string
+            statusCode:
+              type: integer
+  responses:
+    ValidationError:
+      description: Validation failed
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: "#/components/schemas/ApiError"
+              - properties:
+                  error:
+                    properties:
+                      statusCode:
+                        example: 400
+                      code:
+                        example: VALIDATION_ERROR
+    SdkError:
+      description: SDK or upstream failure
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: "#/components/schemas/ApiError"
+              - properties:
+                  error:
+                    properties:
+                      statusCode:
+                        example: 502
+                      code:
+                        example: SDK_ERROR

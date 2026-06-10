@@ -328,24 +328,62 @@ describe("Currency SDK", () => {
     expect(rates.TORO_USD).toBe(0.5);
   });
 
+  const VALID_PK = "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
+  const VALID_ADDR = "0x1234567890abcdef1234567890abcdef12345678";
+  const VALID_ADDR2 = "0xabcdef1234567890abcdef1234567890abcdef12";
+
   it("imports wallet key successfully (custodial keystore)", async () => {
     const axios = await import("axios");
     (axios.default.post as ReturnType<typeof vi.fn>).mockResolvedValue({
-      data: { result: true, address: "0xabc" },
+      data: { result: true, address: VALID_ADDR },
     });
     const { importWalletKey } = await import("../src/sdk/currency.js");
-    const addr = await importWalletKey({ privateKey: "0xpk", password: "pwd" });
-    expect(addr).toBe("0xabc");
+    const result = await importWalletKey({ privateKey: VALID_PK, password: "pwd" });
+    expect(result.success).toBe(true);
+    expect(result.address).toBe(VALID_ADDR);
+    expect(result.message).toBe("key imported");
   });
 
-  it("throws SdkError on importWalletKey failure", async () => {
+  it("throws ValidationError on importWalletKey missing privateKey", async () => {
+    const { importWalletKey, ValidationError } = await import("../src/sdk/currency.js");
+    await expect(importWalletKey({ privateKey: "", password: "pwd" } as any)).rejects.toThrow(ValidationError);
+  });
+
+  it("throws ValidationError on importWalletKey missing password", async () => {
+    const { importWalletKey, ValidationError } = await import("../src/sdk/currency.js");
+    await expect(importWalletKey({ privateKey: VALID_PK, password: "" } as any)).rejects.toThrow(ValidationError);
+  });
+
+  it("throws ValidationError on importWalletKey invalid private key format", async () => {
+    const { importWalletKey, ValidationError } = await import("../src/sdk/currency.js");
+    await expect(importWalletKey({ privateKey: "invalid", password: "pwd" })).rejects.toThrow(ValidationError);
+  });
+
+  it("throws SdkError on importWalletKey upstream failure", async () => {
+    const axios = await import("axios");
+    (axios.default.post as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("network error"));
+    const { importWalletKey, SdkError } = await import("../src/sdk/currency.js");
+    await expect(importWalletKey({ privateKey: VALID_PK, password: "pwd" })).rejects.toThrow(SdkError);
+  });
+
+  it("throws SdkError on importWalletKey malformed response", async () => {
     const axios = await import("axios");
     (axios.default.post as ReturnType<typeof vi.fn>).mockResolvedValue({
-      data: { result: false, error: "duplicate key" },
+      data: null,
+    });
+    const { importWalletKey, SdkError } = await import("../src/sdk/currency.js");
+    await expect(importWalletKey({ privateKey: VALID_PK, password: "pwd" })).rejects.toThrow(SdkError);
+  });
+
+  it("importWalletKey returns success for duplicate key (non-error)", async () => {
+    const axios = await import("axios");
+    (axios.default.post as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: { result: false, error: "duplicate key", address: VALID_ADDR },
     });
     const { importWalletKey } = await import("../src/sdk/currency.js");
-    const { SdkError } = await import("../src/types/errors.js");
-    await expect(importWalletKey({ privateKey: "0xpk", password: "pwd" })).rejects.toThrow(SdkError);
+    const result = await importWalletKey({ privateKey: VALID_PK, password: "pwd" });
+    expect(result.success).toBe(true);
+    expect(result.message).toContain("duplicate");
   });
 
   it("transfers TORO successfully (custodial POST)", async () => {
@@ -355,29 +393,70 @@ describe("Currency SDK", () => {
     });
     const { transferToro } = await import("../src/sdk/currency.js");
     const result = await transferToro({
-      senderAddr: "0xa",
+      senderAddr: VALID_ADDR,
       senderPwd: "pwd",
-      receiverAddr: "0xb",
+      receiverAddr: VALID_ADDR2,
       amount: "1",
     });
     expect(result.success).toBe(true);
+    expect(result.sender).toBe(VALID_ADDR);
+    expect(result.receiver).toBe(VALID_ADDR2);
+    expect(result.amount).toBe("1");
   });
 
-  it("throws ValidationError on transferToro with missing fields", async () => {
-    const { transferToro } = await import("../src/sdk/currency.js");
-    const { ValidationError } = await import("../src/types/errors.js");
+  it("throws ValidationError on transferToro missing fields", async () => {
+    const { transferToro, ValidationError } = await import("../src/sdk/currency.js");
     await expect(transferToro({} as any)).rejects.toThrow(ValidationError);
   });
 
-  it("throws SdkError on transferToro API failure", async () => {
+  it("throws ValidationError on transferToro invalid sender address", async () => {
+    const { transferToro, ValidationError } = await import("../src/sdk/currency.js");
+    await expect(transferToro({ senderAddr: "not-an-address", senderPwd: "pwd", receiverAddr: VALID_ADDR2, amount: "1" })).rejects.toThrow(ValidationError);
+  });
+
+  it("throws ValidationError on transferToro invalid recipient address", async () => {
+    const { transferToro, ValidationError } = await import("../src/sdk/currency.js");
+    await expect(transferToro({ senderAddr: VALID_ADDR, senderPwd: "pwd", receiverAddr: "short", amount: "1" })).rejects.toThrow(ValidationError);
+  });
+
+  it("throws ValidationError on transferToro non-positive amount", async () => {
+    const { transferToro, ValidationError } = await import("../src/sdk/currency.js");
+    await expect(transferToro({ senderAddr: VALID_ADDR, senderPwd: "pwd", receiverAddr: VALID_ADDR2, amount: "0" })).rejects.toThrow(ValidationError);
+  });
+
+  it("throws ValidationError on transferToro negative amount", async () => {
+    const { transferToro, ValidationError } = await import("../src/sdk/currency.js");
+    await expect(transferToro({ senderAddr: VALID_ADDR, senderPwd: "pwd", receiverAddr: VALID_ADDR2, amount: "-5" })).rejects.toThrow(ValidationError);
+  });
+
+  it("throws SdkError on transferToro API failure (insufficient balance)", async () => {
     const axios = await import("axios");
     (axios.default.post as ReturnType<typeof vi.fn>).mockResolvedValue({
       data: { result: false, error: "insufficient balance" },
     });
-    const { transferToro } = await import("../src/sdk/currency.js");
-    const { SdkError } = await import("../src/types/errors.js");
+    const { transferToro, SdkError } = await import("../src/sdk/currency.js");
     await expect(
-      transferToro({ senderAddr: "0xa", senderPwd: "pwd", receiverAddr: "0xb", amount: "999" }),
+      transferToro({ senderAddr: VALID_ADDR, senderPwd: "pwd", receiverAddr: VALID_ADDR2, amount: "999" }),
+    ).rejects.toThrow(SdkError);
+  });
+
+  it("throws SdkError on transferToro upstream 4xx/5xx", async () => {
+    const axios = await import("axios");
+    (axios.default.post as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("Request failed with status code 500"));
+    const { transferToro, SdkError } = await import("../src/sdk/currency.js");
+    await expect(
+      transferToro({ senderAddr: VALID_ADDR, senderPwd: "pwd", receiverAddr: VALID_ADDR2, amount: "1" }),
+    ).rejects.toThrow(SdkError);
+  });
+
+  it("throws SdkError on transferToro malformed upstream response", async () => {
+    const axios = await import("axios");
+    (axios.default.post as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: null,
+    });
+    const { transferToro, SdkError } = await import("../src/sdk/currency.js");
+    await expect(
+      transferToro({ senderAddr: VALID_ADDR, senderPwd: "pwd", receiverAddr: VALID_ADDR2, amount: "1" }),
     ).rejects.toThrow(SdkError);
   });
 });
