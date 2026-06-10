@@ -2,6 +2,8 @@
 
 [![CI](https://github.com/yeziR4/toronet-backend-starter/actions/workflows/ci.yml/badge.svg)](https://github.com/yeziR4/toronet-backend-starter/actions/workflows/ci.yml)
 
+**Demo video:** https://youtu.be/g9SuSx73NRQ
+
 A production-grade Node.js/TypeScript backend server with deep integration of the **Toronet JS SDK (`torosdk`)** for building on the Toronet blockchain.
 
 ## ⚠️ Network Topology — Critical Context
@@ -385,7 +387,7 @@ This project was built for the **Toronet Foundation Bounty** (June 2026).
 | Live verification report | [`LIVE_VERIFIED_FLOWS.md`](./LIVE_VERIFIED_FLOWS.md) |
 | Root-cause analysis | [`ROOT_CAUSE.md`](./ROOT_CAUSE.md) |
 | Reviewer quickstart | [`REVIEWER_QUICKSTART.md`](./REVIEWER_QUICKSTART.md) |
-| Demo video | YouTube link (submitted separately to Toronet Foundation) |
+| Demo video | [https://youtu.be/g9SuSx73NRQ](https://youtu.be/g9SuSx73NRQ) |
 | Written writeup | 500–1000 word writeup (submitted separately to Toronet Foundation) |
 | `.env.example` | [.env.example](./.env.example) |
 
@@ -397,7 +399,7 @@ This project was built for the **Toronet Foundation Bounty** (June 2026).
 - [x] Live verification report with real wallet testing (minted 300 TORO, 1 TORO transferred on-chain, sender now 299 TORO)
 - [x] Root-cause analysis of upstream limitations (incorrect SDK defaults, network topology)
 - [x] Reviewer quickstart for fast verification
-- [x] Demo video (3–8 minutes — submitted separately)
+- [x] Demo video (3–8 minutes — [https://youtu.be/g9SuSx73NRQ](https://youtu.be/g9SuSx73NRQ))
 - [x] 500–1000 word writeup (submitted separately)
 - [x] `.env.example` included
 - [x] Production-grade error handling
